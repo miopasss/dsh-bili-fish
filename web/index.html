@@ -1,0 +1,2441 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>肥鱼 · 本地控制台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%90%9F%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1015;
+  --bg-2: #101820;
+  --panel: #141d26;
+  --panel-2: #18232e;
+  --border: #263442;
+  --border-soft: #1d2a36;
+  --text: #e7eef5;
+  --muted: #8fa1b3;
+  --faint: #6b7d8f;
+  --accent: #5eead4;
+  --accent-2: #38bdf8;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --blue: #60a5fa;
+  --shadow: 0 14px 38px rgba(0, 0, 0, .38);
+  --radius: 14px;
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 560px at 8% -12%, rgba(94, 234, 212, .075), transparent 60%),
+    radial-gradient(900px 500px at 104% 0%, rgba(56, 189, 248, .055), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font: 14px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent-2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .mono { font-family: var(--mono); }
+::selection { background: rgba(94, 234, 212, .25); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #263442; border: 2px solid #0b1015; border-radius: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.app { max-width: 1320px; margin: 0 auto; padding: 26px 28px 78px; }
+
+/* ── 顶栏 ── */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 4px 0 18px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  font-size: 23px; flex: 0 0 auto;
+  background: linear-gradient(135deg, rgba(94, 234, 212, .18), rgba(56, 189, 248, .12));
+  border: 1px solid rgba(94, 234, 212, .25);
+  box-shadow: 0 0 30px rgba(94, 234, 212, .08);
+}
+h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
+.sub { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+.top-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.conn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.conn.ok { color: var(--green); }
+.conn.error { color: var(--red); }
+.conn.loading { color: var(--muted); }
+
+/* ── 按钮 ── */
+.btn {
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  padding: 9px 15px; border-radius: 9px; font-size: 13.5px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: border-color .15s, background .15s, transform .1s, filter .15s;
+  white-space: nowrap;
+}
+.btn:hover { border-color: #3b5065; background: var(--panel-2); }
+.btn:active { transform: translateY(1px); }
+.btn.primary {
+  background: linear-gradient(180deg, #2dd4bf, #14b8a6);
+  border-color: #2dd4bf; color: #042f2b; font-weight: 650;
+}
+.btn.primary:hover { background: linear-gradient(180deg, #5eead4, #2dd4bf); filter: brightness(1.02); }
+.btn.ghost { background: transparent; }
+.btn.ghost:hover { background: rgba(255, 255, 255, .035); }
+.btn.small { padding: 6px 11px; font-size: 12.5px; border-radius: 7px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.mini {
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  padding: 3px 8px; font-size: 11.5px; border-radius: 6px;
+}
+.mini:hover { color: var(--text); border-color: #3b5065; }
+
+/* ── 路径条 / 标签 ── */
+.pathbar {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 20px;
+  background: linear-gradient(180deg, rgba(20, 29, 38, .85), rgba(16, 24, 32, .85));
+  border: 1px solid var(--border); border-radius: 11px;
+}
+.path-label { color: var(--muted); font-size: 12.5px; }
+.pathbar code { color: var(--accent-2); font-size: 12px; overflow-wrap: anywhere; }
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.badge::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+.badge.ok { color: var(--green); background: rgba(74, 222, 128, .08); border-color: rgba(74, 222, 128, .2); }
+.badge.bad { color: var(--red); background: rgba(248, 113, 113, .08); border-color: rgba(248, 113, 113, .2); }
+.badge.warn { color: var(--amber); background: rgba(251, 191, 36, .08); border-color: rgba(251, 191, 36, .2); }
+.badge.skip, .badge.neutral { color: var(--muted); background: rgba(143, 161, 179, .07); border-color: rgba(143, 161, 179, .16); }
+
+/* ── Tab ── */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+.tab {
+  appearance: none; border: 0; background: transparent; color: var(--muted);
+  padding: 11px 18px; border-bottom: 2px solid transparent; font-size: 14.5px;
+  margin-bottom: -1px; transition: color .15s, border-color .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ── 配置 ── */
+.config-head, .history-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 18px; margin-bottom: 15px; flex-wrap: wrap;
+}
+.config-head h2 { margin: 0 0 5px; font-size: 17px; }
+.config-head p { margin: 0; font-size: 12.5px; color: var(--muted); max-width: 760px; }
+.config-head p code { color: var(--accent-2); font-size: 11.5px; }
+.segmented {
+  display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--border);
+  border-radius: 10px; background: #0b1219; flex: 0 0 auto;
+}
+.segmented button {
+  border: 0; background: transparent; color: var(--muted); padding: 7px 13px;
+  border-radius: 7px; font-size: 12.5px; transition: background .15s, color .15s; white-space: nowrap;
+}
+.segmented button:hover { color: var(--text); }
+.segmented button.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
+.segmented .count { color: var(--faint); margin-left: 3px; font-variant-numeric: tabular-nums; }
+
+.card {
+  background: linear-gradient(180deg, rgba(20, 29, 38, .92), rgba(16, 24, 32, .92));
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.group { margin-bottom: 14px; overflow: hidden; }
+.group-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, .012);
+}
+.group-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; }
+.group-key { margin-left: auto; }
+.group-desc { color: var(--muted); font-size: 12.5px; flex: 1 1 100%; margin: -1px 0 0; }
+.group-body { padding: 4px 18px 14px; }
+code.key, .group-key {
+  font-family: var(--mono); font-size: 11px; color: var(--faint);
+  background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 0;
+}
+code.key { color: var(--accent-2); background: rgba(56, 189, 248, .07); border-color: rgba(56, 189, 248, .12); padding: 1px 6px; }
+
+.field {
+  display: grid; grid-template-columns: 230px minmax(0, 1fr);
+  gap: 5px 20px; padding: 11px 0;
+  border-top: 1px dashed var(--border-soft); align-items: start;
+}
+.group-body > .field:first-child, .subgroup-body > .field:first-child { border-top: 0; }
+.field-label { display: flex; flex-direction: column; gap: 3px; padding-top: 7px; min-width: 0; }
+.field-name { font-size: 13.5px; color: var(--text); }
+.field-key { align-self: flex-start; font-family: var(--mono); font-size: 10.5px; color: var(--faint); opacity: .85; }
+.field-control { min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field-control > .input, .field-control > textarea, .field-control > select { flex: 1 1 auto; }
+.field-hint, .field-error { grid-column: 2; font-size: 11.5px; line-height: 1.55; }
+.field-hint { color: var(--faint); margin: -1px 0 0; }
+.field-error { color: var(--red); display: none; margin: 0; }
+.field.invalid .field-error { display: block; }
+.field.invalid .input, .field.invalid textarea { border-color: rgba(248, 113, 113, .6); }
+.tag-unknown {
+  align-self: flex-start; font-size: 10px; color: var(--amber);
+  border: 1px solid rgba(251, 191, 36, .25); border-radius: 4px; padding: 0 4px;
+}
+
+.input, textarea.input, select.input {
+  width: 100%; background: #0b1219; border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 8px 11px; font-size: 13px; line-height: 1.5;
+  transition: border-color .15s, box-shadow .15s;
+}
+.input:hover { border-color: #33475a; }
+.input:focus, textarea.input:focus, select.input:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(94, 234, 212, .1);
+}
+textarea.input { min-height: 92px; resize: vertical; }
+.input.mono { font-size: 12.5px; }
+.input[type=number] { max-width: 260px; }
+.unit { color: var(--faint); font-size: 12px; white-space: nowrap; padding-top: 2px; }
+
+.switch { display: inline-flex; align-items: center; gap: 9px; padding: 5px 0; cursor: pointer; user-select: none; color: var(--muted); font-size: 12.5px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { width: 40px; height: 22px; border-radius: 999px; background: #263442; position: relative; transition: background .18s; flex: 0 0 auto; }
+.switch .track::after { content: ''; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: #8fa1b3; transition: transform .18s, background .18s; }
+.switch input:checked + .track { background: rgba(74, 222, 128, .22); }
+.switch input:checked + .track::after { transform: translateX(18px); background: var(--green); }
+.switch input:focus-visible + .track { outline: 2px solid rgba(94, 234, 212, .5); outline-offset: 2px; }
+
+.subgroup { margin: 8px 0 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: rgba(255, 255, 255, .012); overflow: hidden; }
+.subgroup-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border-soft); }
+.subgroup-head h4 { margin: 0; font-size: 13px; }
+.subgroup-head .hint { color: var(--faint); font-size: 11.5px; }
+.subgroup-body { padding: 2px 14px 10px; }
+
+.notice { padding: 11px 14px; border-radius: 10px; border: 1px solid; font-size: 12.5px; line-height: 1.6; margin: 0 0 14px; }
+.notice.error { color: #fecaca; background: rgba(248, 113, 113, .07); border-color: rgba(248, 113, 113, .28); }
+.notice.info { color: #bae6fd; background: rgba(56, 189, 248, .07); border-color: rgba(56, 189, 248, .22); }
+.notice ul { margin: 6px 0 0; padding-left: 20px; }
+
+.raw-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.raw-status.ok { color: var(--green); }
+.raw-status.bad { color: var(--red); }
+#rawEditor { width: 100%; min-height: 540px; resize: vertical; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; tab-size: 2; }
+
+.savebar {
+  position: sticky; bottom: 14px; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 18px; padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: 13px;
+  background: rgba(13, 20, 27, .9); backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+}
+.savebar .left { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--muted); }
+.savebar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background .15s, box-shadow .15s; }
+.savebar.dirty .dot { background: var(--amber); box-shadow: 0 0 10px rgba(251, 191, 36, .5); }
+.savebar .right { display: flex; align-items: center; gap: 9px; }
+
+/* ── 分组折叠（配置页） ── */
+.group-head { cursor: pointer; user-select: none; transition: background .15s; }
+.group-head:hover { background: rgba(255, 255, 255, .028); }
+.group-head:focus-visible { outline: 2px solid rgba(94, 234, 212, .45); outline-offset: -2px; }
+.group-chev {
+  flex: 0 0 auto; width: 13px; color: var(--muted); font-size: 11.5px; line-height: 1;
+  text-align: center; transition: transform .15s, color .15s;
+}
+.group.expanded .group-chev { transform: rotate(90deg); color: var(--accent); }
+.group.collapsed .group-head { border-bottom-color: transparent; }
+.group.collapsed .group-body { display: none; }
+.config-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -3px 0 14px; }
+.config-tools .hint { color: var(--faint); font-size: 11.5px; margin-right: auto; }
+
+/* ── 召唤指令 ── */
+.cmd-doc { margin-bottom: 22px; overflow: hidden; }
+.cmd-doc-head { padding: 13px 18px; border-bottom: 1px solid var(--border-soft); background: rgba(255, 255, 255, .012); }
+.cmd-doc-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; }
+.cmd-doc-head p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+.doc-scroll { overflow-x: auto; }
+.doc-table { width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.doc-table th {
+  text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px;
+  padding: 9px 18px; border-bottom: 1px solid var(--border); background: #101820; white-space: nowrap;
+}
+.doc-table td { padding: 11px 18px; border-bottom: 1px solid var(--border-soft); vertical-align: top; line-height: 1.7; }
+.doc-table tbody tr:last-child td { border-bottom: 0; }
+.doc-table tbody tr:hover td { background: rgba(94, 234, 212, .025); }
+.doc-what { color: #cfdae6; white-space: nowrap; }
+.doc-effect { color: var(--muted); }
+.kw-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.kw-chip {
+  font-family: var(--mono); font-size: 11.5px; color: #bae6fd; white-space: nowrap;
+  background: rgba(56, 189, 248, .09); border: 1px solid rgba(56, 189, 248, .16);
+  border-radius: 6px; padding: 1px 7px;
+}
+.cmd-notes { padding: 11px 18px 13px; border-top: 1px solid var(--border-soft); background: rgba(255, 255, 255, .012); }
+.cmd-notes ul { margin: 0; padding-left: 19px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.cmd-notes code, .cmd-doc-head code {
+  color: var(--accent-2); font-family: var(--mono); font-size: 11.5px;
+  background: rgba(56, 189, 248, .08); border-radius: 4px; padding: 0 4px;
+}
+.cmd-source { color: var(--faint); font-size: 11.5px; text-align: right; max-width: 320px; }
+.cmd-source code { color: var(--accent-2); font-size: 11px; }
+.cmd-subhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 2px 0 12px; }
+.cmd-subhead h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.cmd-subhead .hint { color: var(--faint); font-size: 11.5px; }
+.cmd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cmd-card { overflow: hidden; }
+.cmd-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 16px 10px; border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, .012);
+}
+.cmd-head h4 { margin: 0; font-size: 13.5px; font-weight: 650; }
+.cmd-head .group-key { margin-left: 0; }
+.cmd-count { margin-left: auto; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmd-desc { flex: 1 1 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.cmd-body { padding: 10px 16px 14px; }
+.cmd-body textarea.input { min-height: 104px; font-family: var(--mono); font-size: 12.5px; }
+.cmd-body .field-error { margin: 6px 0 0; }
+.cmd-card.invalid textarea.input { border-color: rgba(248, 113, 113, .6); }
+.cmd-card.invalid .field-error { display: block; }
+
+/* ── 架构图（纯 HTML + CSS，不引任何外部库） ── */
+.arch-legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
+.arch-legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.arch-dot { display: inline-block; width: 8px; height: 8px; border-radius: 3px; }
+.arch-dot.grey { background: #8fa1b3; }
+.arch-dot.blue { background: #38bdf8; }
+.arch-dot.green { background: #4ade80; }
+.arch-wrap {
+  padding: 16px; border: 1px solid var(--border); border-radius: 14px;
+  background: rgba(13, 20, 27, .45);
+}
+.arch { display: flex; flex-direction: column; }
+.arch-stage {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 13px 16px; border: 1px solid var(--border); border-left: 3px solid var(--tone, #3b5065);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(20, 29, 38, .92), rgba(16, 24, 32, .92));
+}
+.arch-stage.grey { --tone: #8fa1b3; --tone-soft: rgba(143, 161, 179, .10); }
+.arch-stage.blue { --tone: #38bdf8; --tone-soft: rgba(56, 189, 248, .10); }
+.arch-stage.green { --tone: #4ade80; --tone-soft: rgba(74, 222, 128, .10); }
+.arch-num {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 9px;
+  display: grid; place-items: center; line-height: 1; font-size: 14px;
+  color: var(--tone); background: var(--tone-soft); border: 1px solid rgba(255, 255, 255, .06);
+}
+.arch-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.arch-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.arch-phase { color: var(--tone); font-size: 12px; font-weight: 650; letter-spacing: .2px; }
+.arch-name { color: var(--text); font-size: 13px; }
+.arch-lane { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; line-height: 1.6; min-width: 0; }
+.arch-branch {
+  display: flex; flex-direction: column; gap: 5px; min-width: 0;
+  margin-left: 5px; padding-left: 11px; border-left: 1px dashed var(--border);
+}
+.arch-tag {
+  color: var(--text); font-size: 12px; white-space: nowrap;
+  padding: 0 6px; border-radius: 5px;
+  background: rgba(255, 255, 255, .035); border: 1px solid var(--border-soft);
+}
+.arch-tag.ok { color: var(--green); }
+.arch-tag.warn { color: var(--amber); }
+.arch-tree { color: var(--faint); font-family: var(--mono); font-size: 12px; }
+.arch-chip {
+  color: #cfdae6; font-size: 12px; padding: 1px 7px; border-radius: 6px;
+  background: rgba(255, 255, 255, .028); border: 1px solid var(--border-soft);
+  overflow-wrap: anywhere; max-width: 100%;
+}
+.arch-chip code { font-size: 11px; color: var(--accent-2); }
+.arch-chip em { font-style: normal; color: var(--faint); font-size: 11px; margin-left: 5px; }
+.arch-chip.dim { color: var(--muted); }
+.arch-sep { color: var(--faint); font-size: 11px; font-weight: 400; }
+.arch-files { display: flex; flex-wrap: wrap; gap: 5px; }
+.arch-file {
+  font-family: var(--mono); font-size: 10.5px; color: var(--faint);
+  border: 1px solid var(--border-soft); border-radius: 5px;
+  padding: 0 5px; background: rgba(255, 255, 255, .02);
+}
+.arch-arrow { position: relative; height: 26px; margin-left: 27px; }
+.arch-arrow::before { content: ''; position: absolute; left: 13px; top: 0; bottom: 7px; width: 1px; background: #2b3a49; }
+.arch-arrow::after {
+  content: ''; position: absolute; left: 9px; bottom: 0; width: 0; height: 0;
+  border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #3b5065;
+}
+.arch-note { margin: 15px 0 0; color: var(--faint); font-size: 11.5px; text-align: center; }
+
+/* ── 历史统计 ── */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.stat {
+  position: relative; overflow: hidden; padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: linear-gradient(160deg, rgba(20, 29, 38, .95), rgba(13, 20, 27, .95));
+}
+.stat::after {
+  content: ''; position: absolute; right: -22px; bottom: -34px; width: 96px; height: 96px;
+  border-radius: 50%; background: var(--glow, transparent); filter: blur(28px); opacity: .38;
+}
+.stat-num { position: relative; z-index: 1; font-size: 27px; font-weight: 700; letter-spacing: -.5px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat-label { position: relative; z-index: 1; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.stat-sub { position: relative; z-index: 1; color: var(--faint); font-size: 10.5px; margin-top: 5px; }
+.stat.ok .stat-num { color: var(--green); --glow: rgba(74, 222, 128, .7); }
+.stat.bad .stat-num { color: var(--red); --glow: rgba(248, 113, 113, .7); }
+.stat.warn .stat-num { color: var(--amber); --glow: rgba(251, 191, 36, .7); }
+
+.history-tools { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+.history-tools select { width: auto; padding: 6px 9px; font-size: 12px; }
+
+/* ── 表格 ── */
+.table-wrap {
+  border: 1px solid var(--border); border-radius: 13px; overflow: auto;
+  max-height: calc(100vh - 300px); min-height: 150px;
+  background: rgba(13, 20, 27, .55);
+}
+table.history { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1040px; font-size: 12.5px; }
+table.history th {
+  position: sticky; top: 0; z-index: 2; text-align: left; font-weight: 600;
+  color: var(--muted); font-size: 11.5px; padding: 10px 12px;
+  background: #101820; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+table.history td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+table.history tbody tr:last-child td { border-bottom: 0; }
+tr.hist-row { cursor: pointer; transition: background .12s; }
+tr.hist-row:hover td { background: rgba(94, 234, 212, .035); }
+tr.hist-row.expanded td { background: rgba(94, 234, 212, .055); }
+tr.hist-row.static { cursor: default; }
+tr.hist-row.static:hover td { background: transparent; }
+tr.hist-row:focus-visible { outline: 2px solid rgba(94, 234, 212, .5); outline-offset: -2px; }
+.cell-time { white-space: nowrap; }
+.cell-time .date { color: var(--text); }
+.cell-time .time { color: var(--faint); font-size: 10.5px; margin-left: 4px; }
+.cell-title { overflow: hidden; }
+.cell-title .title-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cfdae6; }
+.cell-bv code, .cell-rpid code, .cell-run code { font-size: 11.5px; color: var(--accent-2); }
+.cell-run code { color: var(--faint); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.chev { display: inline-block; width: 13px; color: var(--faint); transition: transform .15s, color .15s; font-size: 9px; }
+tr.hist-row.expanded .chev { transform: rotate(90deg); color: var(--accent); }
+
+tr.detail-row > td { padding: 0; background: #0a1117; }
+.detail { padding: 18px 20px 20px; border-top: 1px solid rgba(94, 234, 212, .14); }
+.detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.detail-head h4 { margin: 0 0 3px; font-size: 14px; }
+.detail-head .path { color: var(--faint); font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
+.meta-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px 18px;
+  padding: 12px 14px; margin-bottom: 14px;
+  background: rgba(255, 255, 255, .015); border: 1px solid var(--border-soft); border-radius: 10px;
+}
+.meta-k { color: var(--faint); font-size: 10.5px; letter-spacing: .35px; }
+.meta-v { color: var(--text); font-size: 12.5px; overflow-wrap: anywhere; }
+.meta-v code { font-size: 11.5px; color: var(--accent-2); }
+.detail-section { margin-top: 15px; }
+.detail-section h5 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.detail-section h5 .hint { color: var(--faint); font-weight: 400; font-size: 11px; }
+.quote {
+  margin: 0 0 14px; padding: 10px 14px; border-left: 3px solid rgba(94, 234, 212, .35);
+  background: rgba(94, 234, 212, .035); color: #c7d4e0; font-size: 12.5px; line-height: 1.7;
+  white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 0 8px 8px 0;
+}
+.files { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-chip { border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 11px; color: var(--muted); background: rgba(255, 255, 255, .02); }
+.file-chip b { color: var(--text); font-weight: 500; }
+.detail-note { color: var(--faint); font-size: 12px; line-height: 1.65; }
+.detail-note .spinner { margin-right: 5px; }
+details.transcript-block, details.raw-meta { margin-top: 14px; }
+details.transcript-block summary, details.raw-meta summary { cursor: pointer; color: var(--muted); font-size: 12px; user-select: none; }
+details.transcript-block summary:hover, details.raw-meta summary:hover { color: var(--text); }
+pre.transcript {
+  max-height: 340px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: #081016; border: 1px solid var(--border-soft); border-radius: 8px;
+  padding: 12px 14px; font-size: 11.5px; line-height: 1.7; color: #aebdcc; margin: 8px 0 0;
+}
+
+/* ── Markdown ── */
+.markdown { font-size: 13px; line-height: 1.8; color: #d4dfe9; overflow-wrap: anywhere; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { color: var(--text); margin: 18px 0 8px; line-height: 1.4; }
+.markdown h1 { font-size: 18px; }
+.markdown h2 { font-size: 16px; }
+.markdown h3 { font-size: 14px; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 13px; }
+.markdown p { margin: 0 0 10px; }
+.markdown ul, .markdown ol { margin: 6px 0 12px; padding-left: 22px; }
+.markdown li { margin: 3px 0; }
+.markdown blockquote { margin: 8px 0 12px; padding: 8px 14px; border-left: 3px solid var(--border); background: rgba(255, 255, 255, .02); color: var(--muted); }
+.markdown code { font-family: var(--mono); font-size: 11.5px; background: rgba(56, 189, 248, .08); color: #bae6fd; padding: 1px 5px; border-radius: 4px; }
+.markdown pre, .markdown pre.md-code { margin: 10px 0; padding: 12px 14px; background: #081016; border: 1px solid var(--border-soft); border-radius: 8px; overflow: auto; white-space: pre-wrap; }
+.markdown pre code { background: none; color: #cbd5e1; padding: 0; }
+.markdown hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+.markdown a { color: var(--accent-2); }
+.markdown strong { color: #fff; }
+
+/* ── 空状态 / 提示 ── */
+.empty { padding: 48px 20px; text-align: center; color: var(--faint); font-size: 13px; }
+.empty .big { font-size: 30px; margin-bottom: 8px; opacity: .55; }
+.spinner { width: 13px; height: 13px; border: 2px solid rgba(94, 234, 212, .2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; vertical-align: -2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; z-index: 100;
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  max-width: min(760px, calc(100vw - 40px)); padding: 11px 16px;
+  border-radius: 10px; border: 1px solid rgba(94, 234, 212, .3);
+  background: rgba(13, 20, 27, .97); color: var(--text); font-size: 12.5px;
+  box-shadow: var(--shadow); overflow-wrap: anywhere;
+  transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { border-color: rgba(248, 113, 113, .35); color: #fecaca; }
+
+.footer { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 28px 0 0; color: var(--faint); font-size: 11.5px; flex-wrap: wrap; }
+.footer .sep { opacity: .5; }
+
+@media (max-width: 900px) {
+  .app { padding: 18px 14px 70px; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .field { grid-template-columns: 1fr; gap: 5px; }
+  .field-label { padding-top: 0; }
+  .field-hint, .field-error { grid-column: 1; }
+  .config-head { flex-direction: column; }
+  .cmd-grid { grid-template-columns: 1fr; }
+  .cmd-source { text-align: left; max-width: none; }
+  .savebar { flex-direction: column; align-items: stretch; }
+  .savebar .right { justify-content: flex-end; }
+  .table-wrap { max-height: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">🐟</div>
+      <div>
+        <h1>肥鱼 · 本地控制台</h1>
+        <p class="sub">配置与回复历史 · 只在 127.0.0.1 上运行</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="conn" class="conn loading"><span class="spinner"></span> 连接中…</span>
+      <button id="btnReload" class="btn ghost" type="button">刷新</button>
+    </div>
+  </header>
+
+  <div class="pathbar">
+    <span class="path-label">配置文件</span>
+    <code id="configPath">读取中…</code>
+    <button id="btnCopyPath" class="mini" type="button">复制</button>
+    <span id="bomBadge" class="badge warn hidden">检测到 BOM（已自动容错）</span>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="页面">
+    <button class="tab active" type="button" data-view="config" role="tab" aria-selected="true">配置</button>
+    <button class="tab" type="button" data-view="history" role="tab" aria-selected="false">历史记录</button>
+    <button class="tab" type="button" data-view="command" role="tab" aria-selected="false">召唤指令</button>
+    <button class="tab" type="button" data-view="arch" role="tab" aria-selected="false">架构图</button>
+  </nav>
+
+  <main>
+    <section id="view-config" class="view" role="tabpanel" aria-label="配置">
+      <div class="config-head">
+        <div>
+          <h2>运行配置</h2>
+          <p>表单按分组渲染；保存前会校验 JSON，并把原文件备份为 <code>config.json.bak</code>。写回时使用 UTF-8 无 BOM。召唤指令词表（<code>routing</code>）在「召唤指令」页单独编辑。</p>
+        </div>
+        <div class="segmented" id="editorSwitch" role="tablist" aria-label="编辑方式">
+          <button type="button" class="active" data-editor="form">表单</button>
+          <button type="button" data-editor="raw">原始 JSON</button>
+        </div>
+      </div>
+
+      <div class="config-tools" id="configTools">
+        <span class="hint">分组默认折叠，点标题展开 / 收起；折叠只是隐藏，没保存的填写不会丢。</span>
+        <button id="btnExpandAll" class="btn ghost small" type="button">全部展开</button>
+        <button id="btnCollapseAll" class="btn ghost small" type="button">全部收起</button>
+      </div>
+
+      <div id="configNotice" class="notice info hidden"></div>
+      <div id="configError" class="notice error hidden"></div>
+
+      <form id="configForm" autocomplete="off" novalidate></form>
+
+      <div id="rawPanel" class="hidden">
+        <div class="raw-tools">
+          <span id="rawStatus" class="muted">正在读取…</span>
+          <button id="btnFormat" class="btn ghost small" type="button">格式化</button>
+        </div>
+        <textarea id="rawEditor" class="input mono" spellcheck="false" aria-label="原始 JSON"></textarea>
+        <p class="field-hint" style="margin-top:8px">原始 JSON 保存是整体替换（会保留你手动写入的所有字段）；表单保存是合并写入，界面没渲染的未知字段也会原样保留。</p>
+      </div>
+
+      <div class="savebar" id="savebar">
+        <div class="left"><span class="dot"></span><span id="dirtyHint">尚未修改</span></div>
+        <div class="right">
+          <button id="btnDiscard" class="btn ghost" type="button">放弃修改</button>
+          <button id="btnSave" class="btn primary" type="button">保存配置</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-history" class="view hidden" role="tabpanel" aria-label="历史记录">
+      <div class="stats" id="stats"></div>
+
+      <div class="history-head">
+        <div class="segmented" id="histSwitch">
+          <button type="button" class="active" data-hist="handled">已处理 <span class="count" id="cntHandled">0</span></button>
+          <button type="button" data-hist="rejected">已拒绝 <span class="count" id="cntRejected">0</span></button>
+        </div>
+        <div class="history-tools">
+          <label for="limitSel">显示</label>
+          <select id="limitSel" class="input">
+            <option value="100">100 条</option>
+            <option value="200" selected>200 条</option>
+            <option value="500">500 条</option>
+            <option value="1000">1000 条</option>
+          </select>
+          <button id="btnHistRefresh" class="btn ghost small" type="button">刷新</button>
+        </div>
+      </div>
+
+      <div id="histError" class="notice error hidden"></div>
+      <div id="histNotice" class="notice info hidden"></div>
+
+      <div class="table-wrap" id="handledWrap">
+        <table class="history" aria-label="已处理记录">
+          <colgroup>
+            <col style="width:150px"><col style="width:130px"><col>
+            <col style="width:110px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
+          </colgroup>
+          <thead>
+            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="handledEmpty" class="empty hidden"></div>
+      </div>
+
+      <div class="table-wrap hidden" id="rejectedWrap">
+        <table class="history" aria-label="已拒绝记录">
+          <colgroup>
+            <col style="width:150px"><col style="width:130px"><col style="width:180px">
+            <col style="width:150px"><col style="width:140px"><col style="width:180px">
+          </colgroup>
+          <thead>
+            <tr><th>时间</th><th>BV</th><th>昵称</th><th>原因</th><th>rpid</th><th>atId</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="rejectedEmpty" class="empty hidden"></div>
+      </div>
+    </section>
+
+    <section id="view-command" class="view hidden" role="tabpanel" aria-label="召唤指令">
+      <div class="config-head">
+        <div>
+          <h2>召唤指令</h2>
+          <p>在 @ 的那句话里带上关键词，就能改变这一条的处理方式。上半部分是只读说明；下半部分的词表可以改，保存时只写 <code>routing.keywords</code>，其它配置一个字不动。</p>
+        </div>
+        <div class="cmd-source" id="cmdSource">词表读取中…</div>
+      </div>
+
+      <div class="card cmd-doc">
+        <div class="cmd-doc-head">
+          <h3>关键词速查</h3>
+          <p>按默认词表整理。实际生效的是下半部分保存进 <code>config.json</code> 的那份词表。</p>
+        </div>
+        <div class="doc-scroll">
+          <table class="doc-table">
+            <colgroup>
+              <col style="width:180px"><col style="width:300px"><col>
+            </colgroup>
+            <thead>
+              <tr><th>想干什么</th><th>在 @ 里写</th><th>效果</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="doc-what">强制用官方字幕</td>
+                <td><div class="kw-chips"><span class="kw-chip">用字幕</span><span class="kw-chip">强制字幕</span><span class="kw-chip">文字稿</span></div></td>
+                <td class="doc-effect">跳过自动检验，有字幕就直接用；没有就报错</td>
+              </tr>
+              <tr>
+                <td class="doc-what">强制用画面文字</td>
+                <td><div class="kw-chips"><span class="kw-chip">用OCR</span><span class="kw-chip">看画面</span><span class="kw-chip">强制OCR</span></div></td>
+                <td class="doc-effect">完全不看字幕，跑抽帧 OCR</td>
+              </tr>
+              <tr>
+                <td class="doc-what">只拉文字稿不调模型</td>
+                <td><div class="kw-chips"><span class="kw-chip">只拉文字版</span><span class="kw-chip">归档模式</span></div></td>
+                <td class="doc-effect">0 token，把完整文字稿贴进评论（最多 3 楼，超了截断）</td>
+              </tr>
+              <tr>
+                <td class="doc-what">只要总结</td>
+                <td><div class="kw-chips"><span class="kw-chip">只要总结</span><span class="kw-chip">只总结</span></div></td>
+                <td class="doc-effect">只总结视频讲了什么</td>
+              </tr>
+              <tr>
+                <td class="doc-what">只要看法（默认）</td>
+                <td><div class="kw-chips"><span class="kw-chip">说说看法</span><span class="kw-chip">你怎么看</span></div></td>
+                <td class="doc-effect">说说你怎么看</td>
+              </tr>
+              <tr>
+                <td class="doc-what">两样都要</td>
+                <td><div class="kw-chips"><span class="kw-chip">总结加看法</span><span class="kw-chip">总结和看法</span></div></td>
+                <td class="doc-effect">先总结再说看法</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cmd-notes">
+          <ul>
+            <li>关键词<strong>不区分大小写</strong>，<code>用 OCR</code> 和 <code>用ocr</code> 都算。</li>
+            <li>长词优先：<code>总结加看法</code> 不会被当成 <code>只总结</code>。</li>
+            <li>没写任何关键词 → 走自动流程（默认「说说看法」）。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="cmd-subhead">
+        <h3>可编辑词表</h3>
+        <span class="hint">一行一个词 · 空行忽略 · 重复自动去掉 · 单个词不超过 20 字 · 每组至少 1 个词</span>
+      </div>
+
+      <div id="cmdError" class="notice error hidden"></div>
+      <div id="cmdNotice" class="notice info hidden"></div>
+
+      <div class="cmd-grid" id="cmdGrid"></div>
+
+      <div class="savebar" id="cmdSavebar">
+        <div class="left"><span class="dot"></span><span id="cmdDirtyHint">尚未修改</span></div>
+        <div class="right">
+          <button id="btnCmdReload" class="btn ghost" type="button">重新读取</button>
+          <button id="btnCmdSave" class="btn primary" type="button">保存词表</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-arch" class="view hidden" role="tabpanel" aria-label="架构图">
+      <div class="config-head">
+        <div>
+          <h2>数据流架构</h2>
+          <p>从 B 站 @ 消息到落盘归档，一共 7 个阶段；每个盒子下面标了对应文件，图和代码能对上。</p>
+        </div>
+        <div class="arch-legend">
+          <span class="arch-legend-item"><i class="arch-dot grey"></i>入口 / 准入</span>
+          <span class="arch-legend-item"><i class="arch-dot blue"></i>处理链</span>
+          <span class="arch-legend-item"><i class="arch-dot green"></i>落盘 / 观测</span>
+        </div>
+      </div>
+
+      <div class="arch-wrap">
+        <div class="arch">
+
+          <article class="arch-stage grey">
+            <div class="arch-num" aria-hidden="true">①</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">入口</span><span class="arch-name">B站评论 @</span></div>
+              <div class="arch-lane">
+                <span class="arch-chip">GET <code>/x/msgfeed/at</code></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">每 30 秒轮询</span>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/serve.mjs</span><span class="arch-file">lib/feed.mjs</span><span class="arch-file">lib/bili.mjs</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage grey">
+            <div class="arch-num" aria-hidden="true">②</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">准入</span><span class="arch-name">白名单 mid 判定</span></div>
+              <div class="arch-branch">
+                <div class="arch-lane">
+                  <span class="arch-tree">├</span><span class="arch-tag ok">在白名单</span>
+                  <b class="arch-sep">→</b><span class="arch-chip">进入 ③</span>
+                </div>
+                <div class="arch-lane">
+                  <span class="arch-tree">└</span><span class="arch-tag warn">非白名单</span>
+                  <b class="arch-sep">→</b><span class="arch-chip">rejected.jsonl<em>不进模型、不回复</em></span>
+                </div>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/serve.mjs</span><span class="arch-file">lib/store.mjs</span><span class="arch-file">lib/config.mjs</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage blue">
+            <div class="arch-num" aria-hidden="true">③</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">指令</span><span class="arch-name">解析 @ 正文关键词</span></div>
+              <div class="arch-lane">
+                <span class="arch-chip"><code>lib/routing.mjs</code> 长词优先 · 不区分大小写</span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">素材源</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">auto / 强制字幕 / 强制画面</span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">输出形态</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">归档<em>0 token</em> / 只总结 / 说看法 / 总结+看法</span>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/routing.mjs</span><span class="arch-file">lib/config.mjs</span><span class="arch-file">config.json → routing.keywords</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage blue">
+            <div class="arch-num" aria-hidden="true">④</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">素材</span><span class="arch-name">拿文字稿：字幕 / 画面 / 语音</span></div>
+              <div class="arch-lane">
+                <span class="arch-tag">官方字幕</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">A+B 闸门<em>♪ 歌词占比 / 标题双字词零重合</em></span>
+              </div>
+              <div class="arch-branch">
+                <div class="arch-lane">
+                  <span class="arch-tree">├</span><span class="arch-tag ok">通过</span>
+                  <b class="arch-sep">→</b><span class="arch-chip">用字幕</span>
+                </div>
+                <div class="arch-lane">
+                  <span class="arch-tree">└</span><span class="arch-tag warn">否决</span>
+                  <b class="arch-sep">→</b><span class="arch-chip">探针（雪碧图 OCR）</span>
+                  <b class="arch-sep">→</b><span class="arch-chip">抽帧 OCR</span>
+                </div>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">没字幕</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">探针</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">有字走 OCR / 没字走 ASR<em>未实现</em></span>
+              </div>
+              <div class="arch-files">
+                <span class="arch-file">lib/media.mjs</span><span class="arch-file">lib/subtitle-check.mjs</span>
+                <span class="arch-file">lib/probe.mjs</span><span class="arch-file">lib/ocr.mjs</span>
+                <span class="arch-file">python/probe.py</span><span class="arch-file">python/ocr.py</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage blue">
+            <div class="arch-num" aria-hidden="true">⑤</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">生成</span><span class="arch-name">拼 prompt → 调模型 → 自检</span></div>
+              <div class="arch-lane">
+                <span class="arch-chip"><code>lib/compose.mjs</code> 拼 prompt<em>【视频】【文字稿】【目标】</em></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">dsh --profile headless</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">自检<em>空正文 / needSplit</em></span>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/compose.mjs</span><span class="arch-file">lib/model.mjs</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage blue">
+            <div class="arch-num" aria-hidden="true">⑥</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">回复</span><span class="arch-name">清洗 → 拆条 → 发楼中楼 → 回读</span></div>
+              <div class="arch-lane">
+                <span class="arch-tag">lib/reply.mjs</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">剥 markdown 与外链</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">按句子边界拆条<em>每条 ≤1000</em></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">POST <code>/x/v2/reply/add</code><em>楼中楼</em></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">回读校验</span>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/reply.mjs</span><span class="arch-file">lib/bili.mjs</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage green">
+            <div class="arch-num" aria-hidden="true">⑦</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">落盘</span><span class="arch-name">归档与观测</span></div>
+              <div class="arch-lane">
+                <span class="arch-chip"><code>runs/&lt;时间&gt;-&lt;BV&gt;/</code><em>summary.md · transcript.txt · prompt.txt · run.json</em></span>
+              </div>
+              <div class="arch-lane">
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">fish runs / stats</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">本网页的历史页</span>
+              </div>
+              <div class="arch-files"><span class="arch-file">lib/runs.mjs</span><span class="arch-file">lib/store.mjs</span><span class="arch-file">web/server.mjs</span></div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+
+      <p class="arch-note">这张图是静态的，只说明数据流；实际行为以配置和代码为准。</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>只监听 127.0.0.1</span><span class="sep">·</span>
+    <span>本页面只读本地文件，不会触发任何 B 站写操作</span>
+  </footer>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict'
+
+/* ────────────────────────────── 常量 / 状态 ────────────────────────────── */
+
+const SUMMARY_PREVIEW_LABEL = '40 万'
+
+const STATE = {
+  view: 'config',
+  editor: 'form',
+  configDoc: null,
+  config: null,
+  dirty: false,
+  commandDirty: false,
+  history: null,
+  histTab: 'handled',
+  limit: 200,
+  busy: false,
+  loadingHistory: false,
+  runCache: new Map(),
+  fieldSeq: 0,
+  toastTimer: null,
+  /* 配置页分组折叠状态：{ 分组key: true } 表示展开；缺省 = 折叠 */
+  expandedGroups: {},
+}
+
+/** 折叠状态存这里（刷新后保持）。只存 true，缺省即折叠。 */
+const EXPANDED_STORAGE_KEY = 'fishweb.config.expandedGroups.v1'
+
+const GROUP_META = {
+  whitelist: { title: '白名单', desc: '允许召唤的 B 站用户；不在名单里的 @ 会被拒绝。' },
+  owner: { title: '主人', desc: '回复里称呼的对象。' },
+  probe: { title: '素材探测', desc: '判断视频有没有字幕、要不要走 OCR / ASR 的参数。' },
+  ocr: { title: 'OCR（画面文字）', desc: '没有可用字幕时，按间隔抽帧识别画面文字。' },
+  asr: { title: 'ASR（语音识别）', desc: '没有字幕、画面文字也不够时，转写音频。' },
+  generate: { title: '生成', desc: '模型上下文、素材预算与输出设置。' },
+  reply: { title: '回复', desc: '回复拆分与发送间隔。' },
+  limits: { title: '限额与超时', desc: '每日额度、队列与任务超时。' },
+  risk: { title: '风控与缓存', desc: '退避序列与素材缓存有效期。' },
+  serve: { title: '常驻进程', desc: 'fish serve 的轮询设置。' },
+}
+
+/** 表单里不渲染的顶层字段（有专门的页面/入口，避免两处各改一半）。 */
+const FORM_HIDDEN_KEYS = new Set(['routing'])
+
+const FIELD_META = {
+  whitelist: { label: 'UID 列表', hint: '一行一个；保存时会去掉空行。' },
+  'owner.mid': { label: '主人 UID', hint: 'B 站用户 mid，字符串或数字都可以。' },
+  'owner.nickname': { label: '主人昵称', hint: '仅用于显示和称呼。' },
+  'probe.samples': { label: '抽样帧数', hint: '探测阶段最多抽几帧。', unit: '帧' },
+  'probe.ocrCharsThreshold': { label: 'OCR 字符阈值', hint: '画面文字少于这个数就考虑 ASR。', unit: '字' },
+  'probe.subtitleBandMax': { label: '字幕带最大高度', hint: '画面底部字幕区域的高度上限。', unit: '像素' },
+  'probe.upscale': { label: '放大倍数', hint: '抽帧放大，便于 OCR。', unit: '倍' },
+  'ocr.frameIntervalSec': { label: '抽帧间隔', hint: '每隔多少秒抽一帧。', unit: '秒' },
+  'ocr.maxFrameIntervalSec': { label: '最大抽帧间隔', hint: '长视频最多放宽到多少秒一帧。', unit: '秒' },
+  'ocr.engine': { label: 'OCR 引擎', hint: '当前使用 rapidocr。' },
+  'asr.model': { label: 'Whisper 模型', hint: 'small / medium / large-v3 等。' },
+  'asr.device': { label: '运行设备', hint: 'cpu 或 cuda。' },
+  'asr.vad': { label: '启用 VAD', hint: '先做人声检测，跳过静音段。' },
+  'asr.charsPerMinuteMin': { label: '每分钟最少字数', hint: '低于这个值认为 ASR 结果不可用。', unit: '字/分' },
+  'generate.maxContextTokens': { label: '最大上下文 tokens', hint: '喂给模型的素材上限。', unit: 'tokens' },
+  'generate.materialBudgetTokens': { label: '素材预算 tokens', hint: '留给文字稿的预算。', unit: 'tokens' },
+  'generate.maxOutputChars': { label: '最大输出字数', hint: '旧字段，保留原样即可。', unit: '字' },
+  'generate.separator': { label: '段落分隔符', hint: 'blank = 空行分隔。' },
+  'generate.targetChars': { label: '目标字数（旧字段）', hint: '旧配置结构，保留原样即可。' },
+  'generate.targetChars.min': { label: '目标字数下限', hint: '旧字段。', unit: '字' },
+  'generate.targetChars.max': { label: '目标字数上限', hint: '旧字段。', unit: '字' },
+  'generate.targetChars.points': { label: '目标分点数', hint: '旧字段。', unit: '点' },
+  'reply.splitOverChars': { label: '拆分阈值', hint: '正文超过这个字数就拆成多条。', unit: '字' },
+  'reply.maxParts': { label: '最多条数', hint: '一条回复最多拆成几条。', unit: '条' },
+  'reply.partGapSec': { label: '发送间隔', hint: '两条之间的随机间隔（秒），格式：最小, 最大。' },
+  'limits.dailyReplies': { label: '每日回复上限', hint: '所有视频合计。', unit: '条' },
+  'limits.failRepliesPerDay': { label: '每日失败上限', hint: '失败到上限后停止尝试。', unit: '条' },
+  'limits.queueMax': { label: '队列上限', hint: '内存队列最多排几条。', unit: '条' },
+  'limits.taskTimeoutMin': { label: '单条任务超时', hint: '超过就杀掉子进程。', unit: '分钟' },
+  'limits.perVideoPerDay': { label: '单视频每日上限', hint: '同一个 BV 每天最多回几条。', unit: '条' },
+  'risk.backoffMinutes': { label: '退避分钟序列', hint: '触发风控后的等待时间，逗号分隔。', unit: '分钟' },
+  'risk.cacheTtlDays': { label: '素材缓存有效期', hint: '超过就重新下载/识别。', unit: '天' },
+  'serve.pollSec': { label: '轮询间隔', hint: '每隔多少秒拉一次 @ 消息。', unit: '秒' },
+}
+
+const NUMBER_ARRAY_KEYS = new Set(['reply.partGapSec', 'risk.backoffMinutes'])
+
+/* 召唤指令词表：键名与 lib/config.mjs 的 DEFAULTS.routing.keywords 一一对应 */
+const KEYWORD_GROUPS = [
+  { key: 'forceSubtitle', title: '强制用官方字幕', desc: '有字幕就直接用，跳过自动检验；没有字幕就报错。' },
+  { key: 'forceOcr', title: '强制用画面文字', desc: '完全不看字幕，直接跑抽帧 OCR。' },
+  { key: 'archive', title: '只拉文字稿（归档模式）', desc: '不调模型，0 token，把完整文字稿贴进评论（最多 3 楼，超了截断）。' },
+  { key: 'summaryOnly', title: '只要总结', desc: '只总结视频讲了什么。' },
+  { key: 'viewOnly', title: '只要看法（默认）', desc: '只说看法；一个关键词都没写时也走这个。' },
+  { key: 'both', title: '总结加看法', desc: '先总结，再说看法。' },
+]
+
+/** config.json 里还没有 routing.keywords 时显示的默认值，与 lib/config.mjs 保持一致 */
+const KEYWORD_DEFAULTS = {
+  forceSubtitle: ['用字幕', '强制字幕', '文字稿'],
+  forceOcr: ['用OCR', '看画面', '强制OCR'],
+  archive: ['只拉文字版', '归档模式'],
+  summaryOnly: ['只要总结', '只总结'],
+  viewOnly: ['说说看法', '你怎么看'],
+  both: ['总结加看法', '总结和看法'],
+}
+
+const KEYWORD_MAX_LEN = 20
+
+/* ────────────────────────────── 基础工具 ────────────────────────────── */
+
+const $ = (selector, root = document) => root.querySelector(selector)
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector))
+
+function h(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag)
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value === null || value === undefined || value === false) continue
+    if (key === 'class') node.className = value
+    else if (key === 'text') node.textContent = String(value)
+    else if (key === 'html') node.innerHTML = value
+    else if (key === 'dataset') Object.assign(node.dataset, value)
+    else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value)
+    else if (value === true) node.setAttribute(key, '')
+    else node.setAttribute(key, String(value))
+  }
+  const append = (child) => {
+    if (child === null || child === undefined || child === false) return
+    if (Array.isArray(child)) { child.forEach(append); return }
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)))
+  }
+  children.forEach(append)
+  return node
+}
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+
+function clone(value) {
+  if (typeof structuredClone === 'function') return structuredClone(value)
+  return JSON.parse(JSON.stringify(value))
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]
+  ))
+}
+
+async function api(url, options = {}) {
+  const init = { credentials: 'same-origin', cache: 'no-store', ...options }
+  if (init.body && !init.headers) init.headers = {}
+  if (init.body && !init.headers['Content-Type']) init.headers['Content-Type'] = 'application/json'
+  const response = await fetch(url, init)
+  const text = await response.text()
+  let data = null
+  try { data = text ? JSON.parse(text) : null } catch { /* 403 页面是 HTML */ }
+  if (!response.ok) {
+    let message = data?.message || data?.error
+    if (!message && response.status === 403) {
+      message = '访问令牌无效或已过期，请用启动窗口里的带 token 地址重新打开。'
+    }
+    if (!message) message = `HTTP ${response.status}`
+    const error = new Error(message)
+    error.status = response.status
+    error.data = data
+    throw error
+  }
+  return data ?? {}
+}
+
+function setConn(kind, text) {
+  const el = $('#conn')
+  el.className = `conn ${kind}`
+  el.replaceChildren()
+  if (kind === 'loading') el.append(h('span', { class: 'spinner' }))
+  el.append(document.createTextNode(` ${text}`))
+}
+
+function toast(message, kind = 'ok') {
+  const el = $('#toast')
+  el.textContent = message
+  el.className = `toast show${kind === 'error' ? ' error' : ''}`
+  clearTimeout(STATE.toastTimer)
+  STATE.toastTimer = setTimeout(() => {
+    el.className = `toast${kind === 'error' ? ' error' : ''}`
+  }, kind === 'error' ? 6500 : 3800)
+}
+
+async function copyText(text, label = '内容') {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast(`已复制${label}`)
+  } catch {
+    try {
+      const area = document.createElement('textarea')
+      area.value = text
+      area.style.position = 'fixed'
+      area.style.opacity = '0'
+      document.body.append(area)
+      area.select()
+      document.execCommand('copy')
+      area.remove()
+      toast(`已复制${label}`)
+    } catch {
+      toast('复制失败，请手动选择文本', 'error')
+    }
+  }
+}
+
+function setDirty(value) {
+  STATE.dirty = value
+  $('#savebar').classList.toggle('dirty', value)
+  $('#dirtyHint').textContent = value ? '有未保存的修改' : '尚未修改'
+}
+
+function formatSize(bytes) {
+  if (!Number.isFinite(bytes)) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+/* ────────────────────────────── 分组折叠 ────────────────────────────── */
+
+function readExpandedGroups() {
+  try {
+    const raw = localStorage.getItem(EXPANDED_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (isPlainObject(parsed)) {
+      const out = {}
+      for (const [key, value] of Object.entries(parsed)) if (value === true) out[key] = true
+      return out
+    }
+  } catch { /* 无痕模式 / 存储被禁用：按全折叠渲染，不影响使用 */ }
+  return {}
+}
+
+function persistExpandedGroups() {
+  try {
+    localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(STATE.expandedGroups))
+  } catch { /* 存不进去就算了，本次页面内仍然保持 */ }
+}
+
+function isGroupExpanded(key) {
+  return STATE.expandedGroups[key] === true
+}
+
+/** 只切 class 与 aria，DOM 不销毁 —— 折叠不会丢未保存的表单值。 */
+function applyGroupState(card, expanded) {
+  if (!card) return
+  card.classList.toggle('expanded', expanded)
+  card.classList.toggle('collapsed', !expanded)
+  const head = $('.group-head', card)
+  if (head) {
+    head.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+    head.title = expanded ? '点击收起' : '点击展开'
+  }
+}
+
+function setGroupExpanded(key, expanded) {
+  if (!key) return
+  if (expanded) STATE.expandedGroups[key] = true
+  else delete STATE.expandedGroups[key]
+  const card = $$('#configForm .group').find((item) => item.dataset.groupKey === key)
+  applyGroupState(card, expanded)
+  persistExpandedGroups()
+}
+
+function toggleGroup(head) {
+  const card = head?.closest('.group')
+  if (!card) return
+  setGroupExpanded(card.dataset.groupKey, card.classList.contains('collapsed'))
+}
+
+function setAllGroups(expanded) {
+  const cards = $$('#configForm .group')
+  for (const card of cards) {
+    const key = card.dataset.groupKey
+    if (!key) continue
+    if (expanded) STATE.expandedGroups[key] = true
+    else delete STATE.expandedGroups[key]
+    applyGroupState(card, expanded)
+  }
+  persistExpandedGroups()
+  toast(expanded ? `已展开 ${cards.length} 个分组` : `已收起 ${cards.length} 个分组`)
+}
+
+
+/* ────────────────────────────── 视图 / Tab ────────────────────────────── */
+
+const VIEWS = ['config', 'history', 'command', 'arch']
+
+function viewFromHash() {
+  if (location.hash.startsWith('#history')) return 'history'
+  if (location.hash.startsWith('#command')) return 'command'
+  if (location.hash.startsWith('#arch')) return 'arch'
+  return 'config'
+}
+
+function setView(view, updateHash = true) {
+  if (!VIEWS.includes(view)) view = 'config'
+  STATE.view = view
+  $$('.tab').forEach((button) => {
+    const active = button.dataset.view === view
+    button.classList.toggle('active', active)
+    button.setAttribute('aria-selected', active ? 'true' : 'false')
+  })
+  for (const name of VIEWS) {
+    const section = $(`#view-${name}`)
+    if (section) section.classList.toggle('hidden', view !== name)
+  }
+  if (updateHash) {
+    const hash = `#${view}`
+    if (location.hash !== hash) {
+      window.history.replaceState(null, '', location.pathname + location.search + hash)
+    }
+  }
+  if (view === 'history' && !STATE.history && !STATE.loadingHistory) loadHistory()
+  if (view === 'command' && !$('#cmdGrid').childElementCount) renderCommand({ force: true })
+}
+
+function setEditor(editor, { force = false } = {}) {
+  if (editor === STATE.editor && !force) return true
+  if (editor === 'raw') {
+    if (!force && STATE.dirty && STATE.editor === 'form') {
+      const got = collectForm()
+      if (!got.ok) {
+        toast('表单里有填写错误，先改好再切到原始 JSON', 'error')
+        return false
+      }
+      STATE.config = got.config
+    }
+    const text = STATE.config ? JSON.stringify(STATE.config, null, 2) : ($('#rawEditor').value || '')
+    $('#rawEditor').value = text
+    updateRawStatus()
+  } else {
+    if (!force && STATE.dirty && STATE.editor === 'raw') {
+      let parsed = null
+      try { parsed = JSON.parse($('#rawEditor').value.replace(/^\uFEFF/, '')) } catch (error) {
+        toast(`原始 JSON 不合法，先改好再切回表单：${error.message}`, 'error')
+        return false
+      }
+      if (!isPlainObject(parsed)) {
+        toast('原始 JSON 顶层必须是对象', 'error')
+        return false
+      }
+      STATE.config = parsed
+    }
+    renderForm(STATE.config)
+  }
+  STATE.editor = editor
+  $$('#editorSwitch button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.editor === editor)
+  })
+  $('#configForm').classList.toggle('hidden', editor !== 'form')
+  $('#rawPanel').classList.toggle('hidden', editor !== 'raw')
+  $('#configTools').classList.toggle('hidden', editor !== 'form')
+  return true
+}
+
+/* ────────────────────────────── 配置读取 / 保存 ────────────────────────────── */
+
+function hideConfigError() { $('#configError').classList.add('hidden') }
+function hideConfigNotice() { $('#configNotice').classList.add('hidden') }
+
+function showConfigError(message, errors = []) {
+  const box = $('#configError')
+  box.replaceChildren()
+  box.append(h('strong', { text: message }))
+  if (errors?.length) {
+    const list = h('ul')
+    for (const item of errors) {
+      list.append(h('li', { text: typeof item === 'string' ? item : (item.message || String(item)) }))
+    }
+    box.append(list)
+  }
+  box.classList.remove('hidden')
+}
+
+function showConfigNotice(message) {
+  const box = $('#configNotice')
+  box.textContent = message
+  box.classList.remove('hidden')
+}
+
+function hideHistError() { $('#histError').classList.add('hidden') }
+function showHistError(message) {
+  const box = $('#histError')
+  box.textContent = message
+  box.classList.remove('hidden')
+}
+
+async function loadConfig() {
+  hideConfigError()
+  hideConfigNotice()
+  setConn('loading', '读取配置…')
+  try {
+    const data = await api('/api/config')
+    STATE.configDoc = data
+    STATE.config = data.config
+    $('#configPath').textContent = data.path || '（未知）'
+    $('#bomBadge').classList.add('hidden')
+    if (data.bom) {
+      $('#bomBadge').textContent = `检测到 ${String(data.bom).toUpperCase()} BOM（已自动容错，保存后去掉）`
+      $('#bomBadge').classList.remove('hidden')
+    }
+    hideCmdError()
+    renderCommand({ force: true })
+
+    if (data.parseError) {
+      showConfigError(data.parseError)
+      $('#rawEditor').value = data.raw || ''
+      setEditor('raw', { force: true })
+      setDirty(false)
+      setConn('ok', '已连接')
+      return
+    }
+
+    if (!data.exists) {
+      showConfigNotice('config.json 还不存在。表单是空的，保存后会创建；写入不会带 BOM。')
+    } else if (data.bom) {
+      showConfigNotice(`文件带 ${String(data.bom).toUpperCase()} BOM，已自动兼容；下次保存会写成 UTF-8 无 BOM。`)
+    }
+
+    $('#rawEditor').value = JSON.stringify(data.config ?? {}, null, 2)
+    STATE.editor = 'form'
+    setEditor('form', { force: true })
+    setDirty(false)
+    setConn('ok', '已连接')
+  } catch (error) {
+    setConn('error', '连接失败')
+    showConfigError(error.message)
+    showCmdError(`读取 config.json 失败：${error.message}`)
+  }
+}
+
+function updateRawStatus() {
+  const el = $('#rawStatus')
+  const text = $('#rawEditor').value
+  try {
+    const parsed = JSON.parse(text.replace(/^\uFEFF/, ''))
+    if (!isPlainObject(parsed)) {
+      el.className = 'raw-status bad'
+      el.textContent = 'JSON 顶层必须是一个对象'
+      return false
+    }
+    el.className = 'raw-status ok'
+    el.textContent = `JSON 合法 · ${Object.keys(parsed).length} 个顶层字段 · ${text.length} 字符`
+    return true
+  } catch (error) {
+    el.className = 'raw-status bad'
+    el.textContent = `JSON 不合法：${error.message}`
+    return false
+  }
+}
+
+function formatRaw() {
+  const editor = $('#rawEditor')
+  try {
+    const parsed = JSON.parse(editor.value.replace(/^\uFEFF/, ''))
+    if (!isPlainObject(parsed)) throw new Error('顶层必须是对象')
+    editor.value = JSON.stringify(parsed, null, 2)
+    setDirty(true)
+    updateRawStatus()
+    toast('已格式化')
+  } catch (error) {
+    toast(`JSON 不合法：${error.message}`, 'error')
+  }
+}
+
+async function saveConfig() {
+  if (STATE.busy) return
+  hideConfigError()
+  let payload = null
+
+  if (STATE.editor === 'raw') {
+    let parsed = null
+    try {
+      parsed = JSON.parse($('#rawEditor').value.replace(/^\uFEFF/, ''))
+    } catch (error) {
+      showConfigError(`原始 JSON 不合法：${error.message}`)
+      return
+    }
+    if (!isPlainObject(parsed)) {
+      showConfigError('原始 JSON 顶层必须是一个对象')
+      return
+    }
+    payload = { config: parsed, mode: 'replace' }
+  } else {
+    const got = collectForm()
+    if (!got.ok) {
+      toast(`表单里有 ${got.errors.length} 处需要修正`, 'error')
+      return
+    }
+    payload = { config: got.config, mode: 'merge' }
+  }
+
+  STATE.busy = true
+  const button = $('#btnSave')
+  const oldText = button.textContent
+  button.disabled = true
+  button.textContent = '保存中…'
+
+  try {
+    const data = await api('/api/config', { method: 'POST', body: JSON.stringify(payload) })
+    STATE.configDoc = data
+    STATE.config = data.config
+    STATE.dirty = false
+    $('#configPath').textContent = data.path || $('#configPath').textContent
+    $('#bomBadge').classList.add('hidden')
+    hideConfigNotice()
+    $('#rawEditor').value = data.raw ?? JSON.stringify(data.config ?? {}, null, 2)
+    updateRawStatus()
+    renderForm(STATE.config ?? {})
+    renderCommand()
+    setDirty(false)
+    const backupName = data.backup ? String(data.backup).split(/[\\/]/).pop() : ''
+    toast(data.backup ? `已保存，原文件已备份为 ${backupName}` : '已保存（原文件不存在，未生成备份）')
+    setConn('ok', '已连接')
+  } catch (error) {
+    if (error.data?.errors?.length) showConfigError(error.message, error.data.errors)
+    else showConfigError(error.message)
+    toast(error.message, 'error')
+  } finally {
+    STATE.busy = false
+    button.disabled = false
+    button.textContent = oldText
+  }
+}
+
+async function discardChanges() {
+  if (STATE.busy) return
+  if ((STATE.dirty || STATE.commandDirty) && !window.confirm('放弃未保存的修改，重新从 config.json 读取？')) return
+  await loadConfig()
+  toast('已重新读取 config.json')
+}
+
+async function reloadCurrent() {
+  if (STATE.busy) return
+  if (STATE.view === 'history') {
+    if (STATE.dirty && !window.confirm('有未保存的修改，刷新会丢掉它们。继续？')) return
+    await loadHistory()
+    toast('已刷新')
+    return
+  }
+  await reloadConfig('已刷新')
+}
+
+/** 配置页 / 召唤指令页共用：确认未保存修改后整体重读 config.json */
+async function reloadConfig(message) {
+  if (STATE.busy) return
+  if ((STATE.dirty || STATE.commandDirty) && !window.confirm('有未保存的修改，重新读取会丢掉它们。继续？')) return
+  await loadConfig()
+  toast(message)
+}
+
+/* ────────────────────────────── 表单渲染 ────────────────────────────── */
+
+function buildControl(path, value, meta) {
+  const key = path.join('.')
+  if (typeof value === 'boolean') {
+    return h('input', { type: 'checkbox', checked: value, 'data-kind': 'boolean' })
+  }
+  if (typeof value === 'number') {
+    const input = h('input', {
+      type: 'number',
+      class: 'input',
+      value: String(value),
+      'data-kind': 'number',
+    })
+    input.step = Number.isInteger(value) ? '1' : 'any'
+    return input
+  }
+  if (typeof value === 'string') {
+    if (value.includes('\n') || value.length > 90) {
+      return h('textarea', {
+        class: 'input',
+        rows: Math.min(8, Math.max(3, value.split('\n').length)),
+        'data-kind': 'string',
+        text: value,
+      })
+    }
+    return h('input', { type: 'text', class: 'input', value, 'data-kind': 'string' })
+  }
+  if (Array.isArray(value)) {
+    const allStrings = value.every((item) => typeof item === 'string')
+    const allNumbers = value.every((item) => typeof item === 'number' && Number.isFinite(item))
+    const forceNumbers = meta.kind === 'number-array' || NUMBER_ARRAY_KEYS.has(key)
+    if (allNumbers || (value.length === 0 && forceNumbers)) {
+      return h('input', {
+        type: 'text',
+        class: 'input mono',
+        value: value.join(', '),
+        'data-kind': 'number-array',
+        placeholder: '例如：10, 20',
+      })
+    }
+    if (allStrings || value.length === 0) {
+      return h('textarea', {
+        class: 'input',
+        rows: Math.min(10, Math.max(3, value.length + 1)),
+        'data-kind': 'string-array',
+        placeholder: '一行一条',
+        text: value.join('\n'),
+      })
+    }
+    return h('textarea', {
+      class: 'input mono',
+      rows: 5,
+      'data-kind': 'json',
+      text: JSON.stringify(value, null, 2),
+    })
+  }
+  return h('textarea', {
+    class: 'input mono',
+    rows: 2,
+    'data-kind': 'json',
+    text: JSON.stringify(value, null, 2),
+  })
+}
+
+function buildField(path, value, opts = {}) {
+  if (isPlainObject(value)) return buildObjectField(path, value)
+
+  const key = path.join('.')
+  const meta = FIELD_META[key] || {}
+  const label = opts.label || meta.label || (opts.topLevel ? '值' : path[path.length - 1])
+  const hint = meta.hint || ''
+  const id = `fld-${++STATE.fieldSeq}`
+
+  const field = h('div', { class: 'field' })
+  const labelWrap = h('label', { class: 'field-label', for: id },
+    h('span', { class: 'field-name', text: label }),
+    h('code', { class: 'field-key', text: key }),
+  )
+  if (!FIELD_META[key] && !opts.topLevel) {
+    labelWrap.append(h('span', { class: 'tag-unknown', text: '未知字段' }))
+  }
+
+  const control = buildControl(path, value, meta)
+  control.id = id
+  control.dataset.path = JSON.stringify(path)
+
+  const controlWrap = h('div', { class: 'field-control' })
+  if (control.dataset.kind === 'boolean') {
+    controlWrap.append(h('label', { class: 'switch' },
+      control,
+      h('span', { class: 'track' }),
+      h('span', { text: '启用' }),
+    ))
+  } else {
+    controlWrap.append(control)
+  }
+  if (meta.unit) controlWrap.append(h('span', { class: 'unit', text: meta.unit }))
+
+  field.append(labelWrap, controlWrap)
+  if (hint) field.append(h('p', { class: 'field-hint', text: hint }))
+  field.append(h('p', { class: 'field-error' }))
+  return field
+}
+
+function buildObjectField(path, value) {
+  const key = path.join('.')
+  const meta = FIELD_META[key] || {}
+  const label = meta.label || path[path.length - 1]
+  const entries = Object.entries(value)
+  const wrapper = h('div', { class: 'subgroup' })
+  wrapper.append(h('div', { class: 'subgroup-head' },
+    h('h4', { text: label }),
+    h('code', { class: 'field-key', text: key }),
+    meta.hint ? h('span', { class: 'hint', text: meta.hint }) : null,
+  ))
+  const body = h('div', { class: 'subgroup-body' })
+  if (!entries.length) body.append(h('p', { class: 'muted', text: '（空对象）' }))
+  for (const [subKey, subValue] of entries) {
+    body.append(buildField([...path, subKey], subValue))
+  }
+  wrapper.append(body)
+  return wrapper
+}
+
+function buildGroup(key, value) {
+  const objectValue = isPlainObject(value)
+  const meta = GROUP_META[key] || {
+    title: key,
+    desc: objectValue ? '未知字段，保存时原样保留。' : '未知顶层字段，保存时原样保留。',
+  }
+  const card = h('section', { class: 'card group', 'data-group-key': key })
+  const head = h('div', {
+    class: 'group-head',
+    role: 'button',
+    tabindex: '0',
+    'aria-expanded': 'false',
+  },
+    h('h3', { text: meta.title || key }),
+    h('span', { class: 'group-chev', 'aria-hidden': 'true', text: '▸' }),
+    h('code', { class: 'group-key', text: key }),
+    h('p', { class: 'group-desc', text: meta.desc || '' }),
+  )
+  const body = h('div', { class: 'group-body' })
+  if (objectValue) {
+    const entries = Object.entries(value)
+    if (!entries.length) body.append(h('p', { class: 'muted', text: '（空对象）' }))
+    for (const [subKey, subValue] of entries) {
+      body.append(buildField([key, subKey], subValue))
+    }
+  } else {
+    body.append(buildField([key], value, { topLevel: true }))
+  }
+  card.append(head, body)
+  applyGroupState(card, isGroupExpanded(key))
+  return card
+}
+
+function renderForm(config) {
+  const form = $('#configForm')
+  form.replaceChildren()
+  STATE.fieldSeq = 0
+  if (!isPlainObject(config)) {
+    form.append(h('div', { class: 'empty' }, '配置为空或格式不正确。请切到「原始 JSON」查看。'))
+    return
+  }
+  const entries = Object.entries(config).filter(([key]) => !FORM_HIDDEN_KEYS.has(key))
+  if (!entries.length) {
+    form.append(h('div', { class: 'empty' }, 'config.json 里还没有可编辑的字段。可以切到「原始 JSON」直接创建。'))
+    return
+  }
+  for (const [key, value] of entries) form.append(buildGroup(key, value))
+}
+
+function clearFieldErrors() {
+  $$('.field', $('#configForm')).forEach((field) => {
+    field.classList.remove('invalid')
+    const error = $('.field-error', field)
+    if (error) error.textContent = ''
+    $$('.input', field).forEach((control) => control.classList.remove('invalid'))
+  })
+}
+
+function setByPath(object, pathArr, value) {
+  let current = object
+  for (let i = 0; i < pathArr.length - 1; i += 1) {
+    const key = pathArr[i]
+    if (!isPlainObject(current[key])) current[key] = {}
+    current = current[key]
+  }
+  current[pathArr[pathArr.length - 1]] = value
+}
+
+function collectForm() {
+  const controls = $$('[data-path]', $('#configForm'))
+  const next = STATE.config ? clone(STATE.config) : {}
+  const errors = []
+  clearFieldErrors()
+
+  for (const control of controls) {
+    let pathArr = null
+    try { pathArr = JSON.parse(control.dataset.path) } catch { continue }
+    const kind = control.dataset.kind
+    let value
+
+    if (kind === 'boolean') {
+      value = control.checked
+    } else if (kind === 'number') {
+      const text = control.value.trim()
+      if (!text) { errors.push({ control, message: '不能为空' }); continue }
+      value = Number(text)
+      if (!Number.isFinite(value)) { errors.push({ control, message: '必须是数字' }); continue }
+    } else if (kind === 'string') {
+      value = control.value
+    } else if (kind === 'string-array') {
+      value = control.value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
+    } else if (kind === 'number-array') {
+      const parts = control.value.split(/[\s,，]+/).map((item) => item.trim()).filter(Boolean)
+      value = parts.map(Number)
+      if (value.some((item) => !Number.isFinite(item))) {
+        errors.push({ control, message: '需要逗号或空格分隔的数字' })
+        continue
+      }
+      if (pathArr.join('.') === 'reply.partGapSec' && value.length !== 2) {
+        errors.push({ control, message: '需要正好两个数字：最小, 最大' })
+        continue
+      }
+    } else if (kind === 'json') {
+      try {
+        value = JSON.parse(control.value)
+      } catch (error) {
+        errors.push({ control, message: `JSON 不合法：${error.message}` })
+        continue
+      }
+    } else {
+      continue
+    }
+
+    setByPath(next, pathArr, value)
+  }
+
+  if (errors.length) {
+    for (const item of errors) {
+      const field = item.control.closest('.field')
+      if (field) {
+        field.classList.add('invalid')
+        const errorEl = $('.field-error', field)
+        if (errorEl) errorEl.textContent = item.message
+      }
+      item.control.classList.add('invalid')
+      // 出错的分组自动展开，否则用户看不到红字提示
+      const group = item.control.closest('.group')
+      if (group) setGroupExpanded(group.dataset.groupKey, true)
+    }
+    errors[0].control.focus()
+    return { ok: false, errors }
+  }
+  return { ok: true, config: next }
+}
+
+/* ────────────────────────────── 召唤指令 ────────────────────────────── */
+
+function hideCmdError() { const box = $('#cmdError'); if (box) box.classList.add('hidden') }
+function hideCmdNotice() { const box = $('#cmdNotice'); if (box) box.classList.add('hidden') }
+
+function showCmdError(message, errors = []) {
+  const box = $('#cmdError')
+  if (!box) return
+  box.replaceChildren()
+  box.append(h('strong', { text: message }))
+  if (errors.length) {
+    const list = h('ul')
+    for (const item of errors) {
+      list.append(h('li', { text: typeof item === 'string' ? item : (item?.message || String(item)) }))
+    }
+    box.append(list)
+  }
+  box.classList.remove('hidden')
+}
+
+function showCmdNotice(message) {
+  const box = $('#cmdNotice')
+  if (!box) return
+  box.textContent = message
+  box.classList.remove('hidden')
+}
+
+function setCommandDirty(value) {
+  STATE.commandDirty = value
+  const bar = $('#cmdSavebar')
+  if (bar) bar.classList.toggle('dirty', value)
+  const hint = $('#cmdDirtyHint')
+  if (hint) hint.textContent = value ? '有未保存的修改' : '尚未修改'
+}
+
+/** 从 STATE.config 取出词表；缺任一组的数组就回落到内置默认值 */
+function keywordValuesFromConfig(config) {
+  const raw = isPlainObject(config) && isPlainObject(config.routing) && isPlainObject(config.routing.keywords)
+    ? config.routing.keywords
+    : null
+  const values = {}
+  for (const group of KEYWORD_GROUPS) {
+    const list = raw?.[group.key]
+    values[group.key] = Array.isArray(list)
+      ? list.filter((item) => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+      : [...KEYWORD_DEFAULTS[group.key]]
+  }
+  return { values, fromFile: raw !== null }
+}
+
+function parseKeywordLines(text) {
+  const words = []
+  const seen = new Set()
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const word = line.trim()
+    if (!word) continue
+    const dedupeKey = word.toLowerCase()
+    if (seen.has(dedupeKey)) continue
+    seen.add(dedupeKey)
+    words.push(word)
+  }
+  return words
+}
+
+function buildKeywordCard(group, words) {
+  const count = h('span', { class: 'cmd-count', text: `${words.length} 个词` })
+  const error = h('p', { class: 'field-error' })
+  const textarea = h('textarea', {
+    class: 'input',
+    rows: 4,
+    spellcheck: 'false',
+    'data-kw-key': group.key,
+    placeholder: '一行一个词',
+    text: words.join('\n'),
+  })
+  const card = h('section', { class: 'card cmd-card', 'data-kw-card': group.key },
+    h('div', { class: 'cmd-head' },
+      h('h4', { text: group.title }),
+      h('code', { class: 'group-key', text: `routing.keywords.${group.key}` }),
+      count,
+      h('p', { class: 'cmd-desc', text: group.desc }),
+    ),
+    h('div', { class: 'cmd-body' }, textarea, error),
+  )
+
+  textarea.addEventListener('input', () => {
+    count.textContent = `${parseKeywordLines(textarea.value).length} 个词`
+    card.classList.remove('invalid')
+    error.textContent = ''
+    setCommandDirty(true)
+  })
+  return card
+}
+
+function renderCommand({ force = false } = {}) {
+  const grid = $('#cmdGrid')
+  if (!grid) return
+  // 有未保存的编辑时不要被后台刷新覆盖（切 Tab / 保存配置页都会走到这里）
+  if (STATE.commandDirty && !force) return
+
+  const { values, fromFile } = keywordValuesFromConfig(STATE.config)
+  grid.replaceChildren()
+  for (const group of KEYWORD_GROUPS) grid.append(buildKeywordCard(group, values[group.key]))
+
+  const source = $('#cmdSource')
+  if (source) {
+    source.replaceChildren()
+    source.append(document.createTextNode('词表来源 '))
+    source.append(h('code', { text: 'routing.keywords' }))
+    source.append(document.createTextNode(fromFile ? ' · 来自 config.json' : ' · 文件里没有，下面是内置默认值'))
+  }
+  hideCmdError()
+  setCommandDirty(false)
+}
+
+/** 校验：去空行、去重、单条 ≤20 字、每组至少 1 个词 */
+function collectKeywords() {
+  const keywords = {}
+  const errors = []
+  for (const group of KEYWORD_GROUPS) {
+    const textarea = $(`[data-kw-key="${group.key}"]`, $('#cmdGrid'))
+    const card = textarea?.closest('.cmd-card') ?? null
+    const errorEl = card ? $('.field-error', card) : null
+    if (card) card.classList.remove('invalid')
+    if (errorEl) errorEl.textContent = ''
+
+    const rawLines = String(textarea?.value ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    const words = parseKeywordLines(textarea?.value ?? '')
+    const tooLong = rawLines.filter((word) => word.length > KEYWORD_MAX_LEN)
+    const messages = []
+    if (tooLong.length) {
+      messages.push(`超过 ${KEYWORD_MAX_LEN} 字：${tooLong.map((word) => `${word}（${word.length} 字）`).join('、')}`)
+    }
+    if (!words.length) messages.push('至少要有 1 个词')
+    if (messages.length) {
+      errors.push({ group, control: textarea, message: messages.join('；') })
+      if (card) card.classList.add('invalid')
+      if (errorEl) errorEl.textContent = messages.join('；')
+    }
+    keywords[group.key] = words
+  }
+  return { ok: errors.length === 0, keywords, errors }
+}
+
+async function saveCommand() {
+  if (STATE.busy) return
+  hideCmdError()
+  hideCmdNotice()
+  const got = collectKeywords()
+  if (!got.ok) {
+    toast(`词表里有 ${got.errors.length} 处需要修正`, 'error')
+    got.errors[0].control?.focus()
+    return
+  }
+
+  STATE.busy = true
+  const button = $('#btnCmdSave')
+  const oldText = button.textContent
+  button.disabled = true
+  button.textContent = '保存中…'
+
+  try {
+    // 只带 routing.keywords + merge：其它配置由服务端从原文件原样带回
+    const data = await api('/api/config', {
+      method: 'POST',
+      body: JSON.stringify({ config: { routing: { keywords: got.keywords } }, mode: 'merge' }),
+    })
+    STATE.configDoc = data
+    STATE.config = data.config
+    $('#configPath').textContent = data.path || $('#configPath').textContent
+    // 配置页停在「原始 JSON」在编辑时不要覆盖用户正在写的内容；表单模式下顺手同步，避免之后整份替换把新词表顶掉
+    $('#bomBadge').classList.add('hidden')
+    if (STATE.editor !== 'raw') {
+      const raw = $('#rawEditor')
+      if (raw) {
+        raw.value = data.raw ?? JSON.stringify(data.config ?? {}, null, 2)
+        updateRawStatus()
+      }
+    }
+    renderCommand({ force: true })
+
+    const total = KEYWORD_GROUPS.reduce((sum, group) => sum + got.keywords[group.key].length, 0)
+    const backupName = data.backup ? String(data.backup).split(/[\\/]/).pop() : ''
+    showCmdNotice(
+      `已保存 routing.keywords（${KEYWORD_GROUPS.length} 组，共 ${total} 个词）` +
+      `${backupName ? `，原文件已备份为 ${backupName}` : ''}。` +
+      'serve 下一轮自动生效，不用重启。',
+    )
+    toast('词表已保存 · serve 下一轮自动生效，不用重启')
+    setConn('ok', '已连接')
+  } catch (error) {
+    const list = Array.isArray(error.data?.errors) ? error.data.errors : []
+    showCmdError(`保存失败：${error.message}`, list)
+    toast(`保存失败：${error.message}`, 'error')
+  } finally {
+    STATE.busy = false
+    button.disabled = false
+    button.textContent = oldText
+  }
+}
+
+/* ────────────────────────────── 历史 ────────────────────────────── */
+
+function renderStats(stats) {
+  const root = $('#stats')
+  root.replaceChildren()
+  if (!stats) {
+    for (let i = 0; i < 4; i += 1) {
+      root.append(h('div', { class: 'stat' },
+        h('div', { class: 'stat-num', text: '—' }),
+        h('div', { class: 'stat-label', text: '加载中…' }),
+      ))
+    }
+    return
+  }
+  const items = [
+    { label: '今日已回', value: stats.todayReplied, tone: 'ok', sub: stats.today || '' },
+    { label: '累计已回', value: stats.totalReplied, tone: '', sub: `已处理 ${stats.totalHandled} 条` },
+    { label: '失败', value: stats.failed, tone: stats.failed ? 'bad' : '', sub: '生成失败 + 风控熔断' },
+    { label: '已拒绝', value: stats.totalRejected, tone: stats.totalRejected ? 'warn' : '', sub: '非白名单 / 队列满' },
+  ]
+  for (const item of items) {
+    root.append(h('div', { class: `stat ${item.tone}` },
+      h('div', { class: 'stat-num', text: String(item.value ?? 0) }),
+      h('div', { class: 'stat-label', text: item.label }),
+      h('div', { class: 'stat-sub', text: item.sub }),
+    ))
+  }
+}
+
+function renderHandledRows(rows) {
+  const table = $('#handledWrap table')
+  const tbody = $('#handledWrap tbody')
+  const empty = $('#handledEmpty')
+  tbody.replaceChildren()
+  table.classList.toggle('hidden', rows.length === 0)
+  empty.classList.toggle('hidden', rows.length > 0)
+  if (!rows.length) {
+    empty.replaceChildren(
+      h('div', { class: 'big', text: '🐟' }),
+      h('div', { text: '还没有已处理记录。' }),
+    )
+    return
+  }
+  for (const record of rows) tbody.append(buildHandledRow(record))
+}
+
+function buildHandledRow(record) {
+  const timeText = record.timeLocal || '—'
+  const [datePart, timePart] = timeText.includes(' ') ? timeText.split(' ') : [timeText, '']
+  const bv = record.bvid
+    ? h('a', {
+      href: `https://www.bilibili.com/video/${encodeURIComponent(record.bvid)}`,
+      target: '_blank',
+      rel: 'noreferrer noopener',
+      text: record.bvid,
+    })
+    : '—'
+  const title = record.title || '（无标题）'
+  const chars = record.chars === undefined || record.chars === null ? '—' : String(record.chars)
+  const replyRpid = record.replyRpid !== undefined && record.replyRpid !== null
+    ? h('code', { text: String(record.replyRpid) })
+    : '—'
+  const run = record.runId
+    ? h('code', { text: record.runId, title: record.runDir || record.runId })
+    : '—'
+
+  const tr = h('tr', { class: 'hist-row', tabindex: '0', 'aria-expanded': 'false' },
+    h('td', { class: 'cell-time' },
+      h('span', { class: 'chev', text: '▸' }),
+      h('span', { class: 'date', text: datePart }),
+      timePart ? h('span', { class: 'time', text: timePart }) : null,
+    ),
+    h('td', { class: 'cell-bv' }, bv),
+    h('td', { class: 'cell-title', title }, h('span', { class: 'title-text', text: title })),
+    h('td', {}, h('span', { class: `badge ${record.resultKind || 'neutral'}`, text: record.resultLabel || record.result || '未知' })),
+    h('td', { class: 'cell-num' }, chars),
+    h('td', { class: 'cell-rpid' }, replyRpid),
+    h('td', { class: 'cell-run' }, run),
+  )
+  tr.__record = record
+  return tr
+}
+
+function renderRejectedRows(rows) {
+  const table = $('#rejectedWrap table')
+  const tbody = $('#rejectedWrap tbody')
+  const empty = $('#rejectedEmpty')
+  tbody.replaceChildren()
+  table.classList.toggle('hidden', rows.length === 0)
+  empty.classList.toggle('hidden', rows.length > 0)
+  if (!rows.length) {
+    empty.replaceChildren(
+      h('div', { class: 'big', text: '🫧' }),
+      h('div', { text: '还没有被拒绝的记录。' }),
+    )
+    return
+  }
+  for (const record of rows) {
+    const timeText = record.timeLocal || '—'
+    const [datePart, timePart] = timeText.includes(' ') ? timeText.split(' ') : [timeText, '']
+    tbody.append(h('tr', { class: 'hist-row static' },
+      h('td', { class: 'cell-time' },
+        h('span', { class: 'date', text: datePart }),
+        timePart ? h('span', { class: 'time', text: timePart }) : null,
+      ),
+      h('td', { class: 'cell-bv' }, record.bvid ? h('code', { text: record.bvid }) : '—'),
+      h('td', { class: 'cell-title' }, h('span', { class: 'title-text', text: record.nickname || '—' })),
+      h('td', {}, h('span', { class: `badge ${record.reasonKind || 'neutral'}`, text: record.reasonLabel || record.reason || '未知' })),
+      h('td', { class: 'cell-rpid' }, record.rpid ? h('code', { text: String(record.rpid) }) : '—'),
+      h('td', { class: 'cell-rpid' }, record.atId ? h('code', { text: String(record.atId) }) : '—'),
+    ))
+  }
+}
+
+function renderHistory() {
+  const data = STATE.history
+  if (!data) return
+  const handled = data.handled || []
+  const rejected = data.rejected || []
+  $('#cntHandled').textContent = String(data.stats?.totalHandled ?? handled.length)
+  $('#cntRejected').textContent = String(data.stats?.totalRejected ?? rejected.length)
+
+  renderHandledRows(handled)
+  renderRejectedRows(rejected)
+
+  $$('#histSwitch button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.hist === STATE.histTab)
+  })
+  $('#handledWrap').classList.toggle('hidden', STATE.histTab !== 'handled')
+  $('#rejectedWrap').classList.toggle('hidden', STATE.histTab !== 'rejected')
+
+  const messages = []
+  const bad = (data.badLines?.handled ?? 0) + (data.badLines?.rejected ?? 0)
+  if (bad > 0) messages.push(`有 ${bad} 行 JSONL 无法解析，已跳过`)
+  if (data.total?.handled > handled.length) {
+    messages.push(`已处理只显示最近 ${handled.length} / ${data.total.handled} 条`)
+  }
+  if (data.total?.rejected > rejected.length) {
+    messages.push(`已拒绝只显示最近 ${rejected.length} / ${data.total.rejected} 条`)
+  }
+  const notice = $('#histNotice')
+  if (messages.length) {
+    notice.textContent = messages.join('；') + '。'
+    notice.classList.remove('hidden')
+  } else {
+    notice.classList.add('hidden')
+  }
+}
+
+async function loadHistory() {
+  if (STATE.loadingHistory) return
+  STATE.loadingHistory = true
+  hideHistError()
+  const refreshButton = $('#btnHistRefresh')
+  refreshButton.disabled = true
+  try {
+    const data = await api(`/api/history?limit=${STATE.limit}`)
+    STATE.history = data
+    STATE.runCache.clear()
+    renderStats(data.stats)
+    renderHistory()
+    setConn('ok', '已连接')
+  } catch (error) {
+    setConn('error', '连接失败')
+    showHistError(error.message)
+  } finally {
+    STATE.loadingHistory = false
+    refreshButton.disabled = false
+  }
+}
+
+/* ────────────────────────────── 展开详情 ────────────────────────────── */
+
+function toggleDetail(tr) {
+  const next = tr.nextElementSibling
+  if (next && next.classList.contains('detail-row')) {
+    next.remove()
+    tr.classList.remove('expanded')
+    tr.setAttribute('aria-expanded', 'false')
+    return
+  }
+  const record = tr.__record
+  if (!record) return
+  tr.classList.add('expanded')
+  tr.setAttribute('aria-expanded', 'true')
+  const container = h('div', { class: 'detail' })
+  const detailRow = h('tr', { class: 'detail-row' }, h('td', { colspan: '7' }, container))
+  tr.after(detailRow)
+  renderDetailShell(container, record)
+  if (record.runId) loadRunInto(container, record)
+}
+
+function renderDetailShell(container, record) {
+  const head = h('div', { class: 'detail-head' },
+    h('div', {},
+      h('h4', { text: record.runId ? `运行 ${record.runId}` : '这条记录没有关联运行目录' }),
+      h('div', { class: 'path', text: record.runDir || '—' }),
+    ),
+  )
+  if (record.runId) {
+    head.append(h('button', {
+      class: 'btn ghost small',
+      type: 'button',
+      onclick: () => copyText(record.runDir, '运行目录路径'),
+    }, '复制路径'))
+  }
+  container.append(head)
+
+  if (record.text) {
+    container.append(h('div', { class: 'quote', text: `召唤原话：${record.text}` }))
+  }
+
+  const meta = h('div', { class: 'meta-grid' })
+  const items = [
+    ['时间', record.timeLocal || '—'],
+    ['BV', record.bvid || '—'],
+    ['标题', record.title || '—'],
+    ['结果', record.resultLabel || record.result || '—'],
+    ['字数', record.chars ?? '—'],
+    ['回复 rpid', record.replyRpid ?? '—'],
+    ['触发 rpid', record.rpid ?? '—'],
+    ['校验', record.verified === true ? '回读可见' : record.verified === false ? '回读未找到' : '—'],
+    ['状态 state', record.state ?? '—'],
+    ['耗时', record.ms ? `${(record.ms / 1000).toFixed(1)} 秒` : '—'],
+  ]
+  for (const [label, value] of items) {
+    meta.append(h('div', { class: 'meta-item' },
+      h('div', { class: 'meta-k', text: label }),
+      h('div', { class: 'meta-v', text: String(value) }),
+    ))
+  }
+  container.append(meta)
+
+  if (!record.runId) {
+    container.append(h('div', { class: 'detail-note', text: '旧记录可能没有 runId，或当时没有生成总结。可以到 HOME/runs 下按时间找。' }))
+    return
+  }
+  container.append(h('div', { class: 'run-detail' },
+    h('div', { class: 'detail-note' }, h('span', { class: 'spinner' }), ' 正在读取 summary.md…'),
+  ))
+}
+
+async function loadRunInto(container, record) {
+  const target = $('.run-detail', container)
+  if (!target) return
+  const runId = record.runId
+  try {
+    let data = STATE.runCache.get(runId)
+    if (!data) {
+      data = await api(`/api/run/${encodeURIComponent(runId)}`)
+      STATE.runCache.set(runId, data)
+    }
+    renderRunDetail(target, data)
+  } catch (error) {
+    target.replaceChildren(h('div', { class: 'notice error' }, `读取运行目录失败：${error.message}`))
+  }
+}
+
+function renderRunDetail(target, data) {
+  target.replaceChildren()
+  const section = h('div', { class: 'detail-section' },
+    h('h5', {},
+      'summary.md',
+      data.summaryChars ? h('span', { class: 'hint', text: `${data.summaryChars} 字` }) : null,
+    ),
+  )
+  if (data.summary) {
+    const markdown = h('div', { class: 'markdown' })
+    markdown.innerHTML = renderMarkdown(data.summary)
+    section.append(markdown)
+    if (data.summaryTruncated) {
+      section.append(h('p', { class: 'detail-note', text: `只显示前 ${SUMMARY_PREVIEW_LABEL} 字。` }))
+    }
+  } else {
+    section.append(h('p', { class: 'detail-note', text: '这个运行目录里没有 summary.md。' }))
+  }
+  target.append(section)
+
+  if (data.transcriptHead) {
+    target.append(h('details', { class: 'transcript-block' },
+      h('summary', { text: `transcript.txt 前 ${data.transcriptHead.length} 字${data.transcriptTruncated ? `（全文 ${data.transcriptChars} 字）` : ''}` }),
+      h('pre', { class: 'transcript', text: data.transcriptHead }),
+    ))
+  }
+
+  if (data.files?.length) {
+    const files = h('div', { class: 'files' })
+    for (const file of data.files) {
+      files.append(h('span', { class: 'file-chip' }, h('b', { text: file.name }), ` ${formatSize(file.size)}`))
+    }
+    target.append(h('div', { class: 'detail-section' }, h('h5', {}, '目录文件'), files))
+  }
+
+  if (data.meta) {
+    target.append(h('details', { class: 'raw-meta' },
+      h('summary', { text: 'run.json 元数据' }),
+      h('pre', { class: 'transcript', text: JSON.stringify(data.meta, null, 2) }),
+    ))
+  }
+}
+
+/* ────────────────────────────── Markdown 渲染（先转义，再加标签） ────────────────────────────── */
+
+function inlineMarkdown(escaped) {
+  return escaped
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer noopener">$1</a>')
+}
+
+function renderMarkdown(markdown) {
+  const lines = String(markdown ?? '').replace(/\r\n?/g, '\n').split('\n')
+  const out = []
+  let index = 0
+  let listType = null
+  let paragraph = []
+
+  const closeList = () => {
+    if (listType) {
+      out.push(`</${listType}>`)
+      listType = null
+    }
+  }
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      out.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`)
+      paragraph = []
+    }
+  }
+  const closeBlocks = () => {
+    flushParagraph()
+    closeList()
+  }
+
+  while (index < lines.length) {
+    const line = lines[index]
+
+    if (/^```/.test(line.trim())) {
+      closeBlocks()
+      index += 1
+      const code = []
+      while (index < lines.length && !/^```/.test(lines[index].trim())) {
+        code.push(lines[index])
+        index += 1
+      }
+      index += 1
+      out.push(`<pre class="md-code"><code>${escapeHtml(code.join('\n'))}</code></pre>`)
+      continue
+    }
+
+    if (!line.trim()) {
+      closeBlocks()
+      index += 1
+      continue
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/)
+    if (heading) {
+      closeBlocks()
+      const level = heading[1].length
+      out.push(`<h${level}>${inlineMarkdown(escapeHtml(heading[2]))}</h${level}>`)
+      index += 1
+      continue
+    }
+
+    if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+      closeBlocks()
+      out.push('<hr>')
+      index += 1
+      continue
+    }
+
+    if (/^\s*>\s?/.test(line)) {
+      closeBlocks()
+      const quote = []
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quote.push(lines[index].replace(/^\s*>\s?/, ''))
+        index += 1
+      }
+      out.push(`<blockquote>${quote.map((item) => `<p>${inlineMarkdown(escapeHtml(item))}</p>`).join('')}</blockquote>`)
+      continue
+    }
+
+    const unordered = line.match(/^\s*[-*+]\s+(.+)$/)
+    const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/)
+    if (unordered || ordered) {
+      flushParagraph()
+      const type = unordered ? 'ul' : 'ol'
+      if (listType !== type) {
+        closeList()
+        out.push(`<${type}>`)
+        listType = type
+      }
+      out.push(`<li>${inlineMarkdown(escapeHtml((unordered || ordered)[1]))}</li>`)
+      index += 1
+      continue
+    }
+
+    paragraph.push(line.trim())
+    index += 1
+  }
+
+  closeBlocks()
+  return out.join('\n')
+}
+
+/* ────────────────────────────── 事件 / 初始化 ────────────────────────────── */
+
+function handleHandledClick(event) {
+  const tr = event.target.closest('tr.hist-row')
+  if (!tr) return
+  if (event.target.closest('a, button')) return
+  toggleDetail(tr)
+}
+
+function bindEvents() {
+  $$('.tab').forEach((button) => {
+    button.addEventListener('click', () => setView(button.dataset.view))
+  })
+  $$('#editorSwitch button').forEach((button) => {
+    button.addEventListener('click', () => setEditor(button.dataset.editor))
+  })
+  $('#btnSave').addEventListener('click', saveConfig)
+  $('#btnDiscard').addEventListener('click', discardChanges)
+  $('#btnFormat').addEventListener('click', formatRaw)
+  $('#btnReload').addEventListener('click', reloadCurrent)
+  $('#btnHistRefresh').addEventListener('click', loadHistory)
+  $('#btnCopyPath').addEventListener('click', () => copyText($('#configPath').textContent, '配置文件路径'))
+  $('#limitSel').addEventListener('change', (event) => {
+    STATE.limit = Number(event.target.value) || 200
+    loadHistory()
+  })
+
+  $('#configForm').addEventListener('submit', (event) => {
+    event.preventDefault()
+    saveConfig()
+  })
+  $('#configForm').addEventListener('input', (event) => {
+    const field = event.target.closest('.field')
+    if (field) {
+      field.classList.remove('invalid')
+      const error = $('.field-error', field)
+      if (error) error.textContent = ''
+      event.target.classList.remove('invalid')
+    }
+    setDirty(true)
+  })
+  $('#rawEditor').addEventListener('input', () => {
+    setDirty(true)
+    updateRawStatus()
+  })
+
+  // 分组折叠：整行（含标题、箭头、说明）都能点，键盘 Enter / 空格也能切
+  $('#configForm').addEventListener('click', (event) => {
+    const head = event.target.closest('.group-head')
+    if (!head) return
+    toggleGroup(head)
+  })
+  $('#configForm').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    const head = event.target.closest('.group-head')
+    if (!head) return
+    event.preventDefault()
+    toggleGroup(head)
+  })
+  $('#btnExpandAll').addEventListener('click', () => setAllGroups(true))
+  $('#btnCollapseAll').addEventListener('click', () => setAllGroups(false))
+
+  // 召唤指令页
+  $('#btnCmdSave').addEventListener('click', saveCommand)
+  $('#btnCmdReload').addEventListener('click', () => reloadConfig('已重新读取 config.json'))
+
+  $('#histSwitch').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-hist]')
+    if (!button) return
+    STATE.histTab = button.dataset.hist
+    renderHistory()
+  })
+
+  $('#handledWrap').addEventListener('click', handleHandledClick)
+  $('#handledWrap').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    const tr = event.target.closest('tr.hist-row')
+    if (!tr) return
+    event.preventDefault()
+    toggleDetail(tr)
+  })
+
+  window.addEventListener('hashchange', () => {
+    const view = viewFromHash()
+    if (view !== STATE.view) setView(view, false)
+  })
+  window.addEventListener('beforeunload', (event) => {
+    if (!STATE.dirty && !STATE.commandDirty) return
+    event.preventDefault()
+    event.returnValue = ''
+  })
+}
+
+function stripTokenFromUrl() {
+  const url = new URL(location.href)
+  if (!url.searchParams.has('token')) return
+  url.searchParams.delete('token')
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+}
+
+async function init() {
+  stripTokenFromUrl()
+  STATE.expandedGroups = readExpandedGroups()
+  bindEvents()
+  renderStats(null)
+  setView(viewFromHash(), false)
+  await loadConfig()
+  if (!STATE.history && !STATE.loadingHistory) loadHistory()
+}
+
+init()
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# dsh-bili-fish — DSH bundle patch 层
+#
+# 通过 DSH 内置的 @deepseek-ai/dsh-mcp-client 桥接挂载本包的 MCP stdio 服务器。
+# 启动后模型看到的工具名为 mcp__fish__<工具>。
+
+- insert:
+    - id: mcp-bili-fish
+      name: 'dsh-bili-fish'

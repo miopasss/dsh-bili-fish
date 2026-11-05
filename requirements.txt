@@ -1,0 +1,4 @@
+# OCR 探针与抽帧识别用（只有走 OCR 那条腿才需要）
+# 安装：pip install -r requirements.txt
+pillow>=10.0
+rapidocr-onnxruntime>=1.3
