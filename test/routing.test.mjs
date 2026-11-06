@@ -424,11 +424,13 @@ test('quiet：没写悄悄就是 false（不是 undefined）', () => {
   assert.equal(parseCommand('').quiet, false)
 })
 
-test('词表：每组只留一个词（收词后不该再有同义词）', () => {
+test('词表：除静默外每组只留一个词（收词后不该再有同义词）', () => {
   const k = config().routing.keywords
   for (const [g, ws] of Object.entries(k)) {
+    if (g === 'quiet') continue // 静默有两个：悄悄 / 静默
     assert.equal(ws.length, 1, `${g} 应该只有一个词，实际 ${JSON.stringify(ws)}`)
   }
+  assert.deepEqual(k.quiet, ['悄悄', '静默'])
   assert.deepEqual(Object.keys(k).sort(), ['archive', 'both', 'forceAsr', 'forceOcr', 'forceSubtitle', 'quiet', 'summaryOnly', 'viewOnly'])
 })
 
@@ -437,7 +439,7 @@ test('词表：三级素材源都有词（用字幕 / 用OCR / 用ASR）', () =>
   assert.deepEqual(k.forceSubtitle, ['用字幕'])
   assert.deepEqual(k.forceOcr, ['用OCR'])
   assert.deepEqual(k.forceAsr, ['用ASR'])
-  assert.deepEqual(k.quiet, ['悄悄'])
+  assert.deepEqual(k.quiet, ['悄悄', '静默'])
 })
 
 test('forceAsr：解析成 source=asr', () => {
@@ -457,4 +459,20 @@ test('forceAsr：三个素材源互斥，取最后说的', () => {
   assert.equal(parseCommand('@它 用字幕 用ASR').source, 'asr')
   assert.equal(parseCommand('@它 用ASR 用字幕').source, 'subtitle')
   assert.equal(parseCommand('@它 用OCR 用ASR 用OCR').source, 'ocr')
+})
+
+/* ── 并发保护：抢占文件 + 单实例锁 ── */
+import { claimJob, releaseClaim } from '../lib/store.mjs'
+
+test('claimJob：第一次能抢到，第二次抢不到（跨进程互斥）', () => {
+  const rpid = 'test-claim-' + Date.now()
+  assert.equal(claimJob(rpid), true)
+  assert.equal(claimJob(rpid), false, '同一 rpid 不能被抢第二次')
+  releaseClaim(rpid)
+  assert.equal(claimJob(rpid), true, '释放后能重新抢')
+  releaseClaim(rpid)
+})
+
+test('releaseClaim：没抢过也能安全调用', () => {
+  assert.doesNotThrow(() => releaseClaim('never-claimed-' + Date.now()))
 })

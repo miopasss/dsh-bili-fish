@@ -7,3 +7,7 @@ python/__pycache__/
 # 截图里含真实昵称 / 本地路径 / 视频标题，只在本地留档，不进仓库
 web/screenshots/
 
+
+# 运行时锁（本地，不进仓库）
+serve.lock
+claims/
