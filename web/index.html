@@ -403,6 +403,11 @@ textarea.input { min-height: 92px; resize: vertical; }
   content: ''; position: absolute; left: 9px; bottom: 0; width: 0; height: 0;
   border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #3b5065;
 }
+/* 架构图里的分节标题：上面 7 段是后台，下面 3 段是控制台 */
+.arch-sub { max-width: 920px; margin: 30px auto 10px; padding: 0 4px; }
+.arch-sub h3 { margin: 0 0 6px; font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+.arch-sub p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--fg-dim, #94a3b8); }
+
 .arch-note { margin: 15px 0 0; color: var(--faint); font-size: 11.5px; text-align: center; }
 
 /* ── 历史统计 ── */
@@ -1010,7 +1015,103 @@ pre.transcript {
         </div>
       </div>
 
-      <p class="arch-note">这张图是静态的，只说明数据流；实际行为以配置和代码为准。</p>
+      <!-- ── 控制台自己的架构（2026-11-06 补）── -->
+      <div class="arch-sub">
+        <h3>控制台（本页面）怎么读到这些数据</h3>
+        <p>上面 7 个阶段是「鱼」在后台跑；控制台是另一条只读的旁路，不参与处理，也不发任何 B 站请求。</p>
+      </div>
+
+      <div class="arch-wrap">
+        <div class="arch">
+
+          <article class="arch-stage green">
+            <div class="arch-num" aria-hidden="true">⑧</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">入口</span><span class="arch-name">浏览器 → 本地控制台</span></div>
+              <div class="arch-lane">
+                <span class="arch-chip">GET <code>http://127.0.0.1:8787/?token=…</code></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">token 只在启动时打印一次<em>写进 URL，之后靠 Cookie 记住</em></span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag warn">三道闸</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">只监听 127.0.0.1</span>
+                <b class="arch-sep">·</b>
+                <span class="arch-chip">Host / Origin 校验<em>防 DNS rebinding</em></span>
+                <b class="arch-sep">·</b>
+                <span class="arch-chip"><code>x-token</code></span>
+              </div>
+              <div class="arch-files"><span class="arch-file">web/server.mjs</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage green">
+            <div class="arch-num" aria-hidden="true">⑨</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">只读</span><span class="arch-name">四个数据源，全是本地文件</span></div>
+              <div class="arch-lane">
+                <span class="arch-tag">配置</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip"><code>config.json</code><em>唯一一处可写</em></span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">历史</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip"><code>handled.jsonl</code></span>
+                <b class="arch-sep">·</b>
+                <span class="arch-chip"><code>rejected.jsonl</code></span>
+                <b class="arch-sep">·</b>
+                <span class="arch-chip"><code>alerts/</code></span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">详情</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip"><code>runs/&lt;runId&gt;/</code><em>run.json · summary.md · prompt.txt · transcript.txt</em></span>
+              </div>
+              <div class="arch-files"><span class="arch-file">GET /api/config</span><span class="arch-file">GET /api/history</span><span class="arch-file">GET /api/run?id=</span><span class="arch-file">POST /api/config</span></div>
+            </div>
+          </article>
+
+          <div class="arch-arrow" aria-hidden="true"></div>
+
+          <article class="arch-stage green">
+            <div class="arch-num" aria-hidden="true">⑩</div>
+            <div class="arch-main">
+              <div class="arch-head"><span class="arch-phase">界面</span><span class="arch-name">四个 Tab，各管一件事</span></div>
+              <div class="arch-lane">
+                <span class="arch-tag">配置</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">表单 <em>分组可折叠</em> / JSON 源码，两栏互相同步</span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">历史</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">已处理 / 已拒绝 / 静默<em>三个分段</em></span>
+                <b class="arch-sep">·</b>
+                <span class="arch-chip">形态 + 素材源<em>两个筛选，可叠加，纯前端过滤</em></span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">召唤指令</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">说明表 + 可编辑词表<em>写回 config.json 的 routing.keywords</em></span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag">架构图</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">就是这一页<em>纯 HTML/CSS，不引外部资源</em></span>
+              </div>
+              <div class="arch-files"><span class="arch-file">web/index.html</span></div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+
+      <p class="arch-note">这张图是静态的，只说明数据流；实际行为以配置和代码为准。
+        控制台与后台进程是**两个独立进程**：控制台只读写本地文件，后台负责和 B 站打交道。</p>
     </section>
   </main>
 
