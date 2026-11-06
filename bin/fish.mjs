@@ -148,8 +148,36 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
     }
   }
 
-  /* ── --source asr：字幕和画面都不看，只下音轨转写（2026-11-06 加） ── */
+  /* ── --source asr：只下音轨转写（2026-11-06 加）
+   *
+   * 默认**允许回退到字幕**（`asr.strict: false`）：
+   *   ASR 是三档里质量最低、最慢的（实测 small 模型 0.32× 实时，
+   *   专业词错得多），而字幕是官方 AI 字幕、更准、零下载、0.2 秒。
+   *   所以「有字幕却去听声音」是纯亏 —— 这时用字幕是**升级**不是降级。
+   *   `用ASR` 的真实价值变成：**别去抽帧看画面**（省整片下载）。
+   *
+   * 想强制走 ASR（比如验证转写效果）就设 `asr.strict: true`。
+   */
   if (source === 'asr') {
+    const strict = config().asr?.strict === true
+    if (!strict) {
+      const sub = grabSubtitle(report)
+      if (sub?.lines?.length) {
+        const timed = toTimedText(sub.lines)
+        // 这里的字幕不是用户点名的，所以要过闸门；歌词/跟标题无关的不采用
+        const q = checkSubtitleQuality({ lines: timed, title: report.video.title })
+        if (!q.suspicious) {
+          const merged = mergeSentences(timed)
+          return {
+            tier: 'subtitle',
+            raw: timed,
+            merged,
+            note: `字幕可用且通过校验 → 用字幕（比语音转写更准、零下载）· ${timed.length} 句 → 拼成 ${merged.length} 段`,
+          }
+        }
+        console.log(`  → 字幕可疑（${q.reasons.join('；')}），「用ASR」不回退它，直接听声音`)
+      }
+    }
     const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
     return {
       tier: 'asr',
