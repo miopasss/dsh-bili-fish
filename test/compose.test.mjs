@@ -54,9 +54,17 @@ test('prompt：视频 / 文字稿 / 目标三块的内容正确', () => {
   assert.match(p, /\n\n【目标】\n说说你怎么看$/)
 })
 
-test('prompt：--ask 在【目标】下面单独一行', () => {
+test('prompt：--ask 放在【提问者的话】里，且在【目标】前面', () => {
   const p = promptFor({ ask: '重点讲 PTC 那段' })
-  assert.match(p, /【目标】\n说说你怎么看\n另外：重点讲 PTC 那段$/)
+  // 2026-11-06 A/B 结论：放【目标】前面，最后一句仍是「说说你怎么看」
+  assert.match(p, /【提问者的话】\n重点讲 PTC 那段\n\n【目标】\n说说你怎么看$/)
+  assert.equal(p.includes('另外：'), false, '不该再出现旧的「另外：」前缀')
+})
+
+test('prompt：没有 ask 时不出现【提问者的话】', () => {
+  const p = promptFor({})
+  assert.equal(p.includes('【提问者的话】'), false)
+  assert.match(p, /【目标】\n说说你怎么看$/)
 })
 
 test('prompt：素材被裁时保留抽样提示（放在来源下面）', () => {

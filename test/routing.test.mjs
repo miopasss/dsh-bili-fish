@@ -345,3 +345,55 @@ test('cleanErrorText：清洗后为空则回原文（绝不回空评论）', () 
 test('失败回复：子进程没给错误原文时用 why（超时），同样去掉 ✗', () => {
   assert.equal(failureReplyText({ err: '[第 1 次生成…]\n', out: '' }, '超时 20 分钟'), '超时 20 分钟')
 })
+
+/* ── 剃掉召唤指令，留下提问者的话 ── */
+import { stripAsk } from '../lib/routing.mjs'
+
+test('stripAsk：剃掉 @昵称', () => {
+  const t = stripAsk('@今天要做什么 这个视频说得对吗', [])
+  assert.equal(t.includes('@'), false)
+  assert.ok(t.includes('这个视频说得对吗'))
+})
+
+test('stripAsk：剃掉命中的关键词', () => {
+  const raw = '@某人 用OCR看看这个视频说的对吗'
+  const cmd = parseCommand(raw)
+  const t = stripAsk(raw, cmd.hits)
+  assert.equal(/用ocr/i.test(t), false)
+  assert.ok(t.includes('看看这个视频说的对吗'))
+})
+
+test('stripAsk：保留多个问题和换行', () => {
+  const raw = '@某人 用OCR这个说的对吗\n\n面试会更有效吗\n另外护城河是钱吗'
+  const t = stripAsk(raw, parseCommand(raw).hits)
+  assert.ok(t.includes('面试会更有效吗'))
+  assert.ok(t.includes('护城河是钱吗'))
+  assert.ok(t.includes('\n'))
+})
+
+test('stripAsk：纯召唤语剃完很短', () => {
+  const raw = '@今天要做什么 看看这个'
+  const t = stripAsk(raw, parseCommand(raw).hits)
+  assert.equal(t, '看看这个')
+  assert.ok(t.length < 15)
+})
+
+test('stripAsk：不剃语气词与礼貌语', () => {
+  const raw = '@某人 帮我看看这个视频说得对吗，我感觉有点奇怪'
+  const t = stripAsk(raw, parseCommand(raw).hits)
+  assert.ok(t.includes('帮我看看'))
+  assert.ok(t.includes('我感觉有点奇怪'))
+})
+
+test('stripAsk：空输入 / 只有 @', () => {
+  assert.equal(stripAsk(''), '')
+  assert.equal(stripAsk('@某人'), '')
+  assert.equal(stripAsk(null), '')
+})
+
+test('stripAsk：不传 hits 时自己算', () => {
+  const raw = '@某人 用字幕这段讲得对吗'
+  const t = stripAsk(raw)
+  assert.equal(t.includes('用字幕'), false)
+  assert.ok(t.includes('这段讲得对吗'))
+})

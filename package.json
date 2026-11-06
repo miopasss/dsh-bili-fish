@@ -1,53 +1,51 @@
-﻿{
-    "name":  "dsh-bili-fish",
-    "version":  "0.1.0",
-    "description":  "召唤型 B 站视频阅读工具：被 @ 时读懂视频（字幕/OCR/ASR），按关键词强制分流，把结论回到楼中楼 / A summonable Bilibili video reader for DeepSeek Harness",
-    "license":  "MIT",
-    "type":  "module",
-    "main":  "./mcp/dsh-plugin.mjs",
-    "bin":  {
-                "bili-fish":  "./bin/fish.mjs"
-            },
-    "exports":  {
-                    ".":  "./mcp/dsh-plugin.mjs",
-                    "./server":  "./mcp/server.mjs",
-                    "./cordis.patch.yml":  "./cordis.patch.yml",
-                    "./package.json":  "./package.json"
-                },
-    "files":  [
-                  "bin",
-                  "lib",
-                  "mcp",
-                  "python",
-                  "web",
-                  "docs",
-                  "tools",
-                  "cordis.patch.yml",
-                  "requirements.txt",
-                  "CHANGELOG.md",
-                  "README.md",
-                  "fish-serve.cmd",
-                  "fish-once.cmd",
-                  "fish-web.cmd"
-              ],
-    "scripts":  {
-                    "see":  "node bin/fish.mjs see",
-                    "summary":  "node bin/fish.mjs summary",
-                    "test":  "node --test test/compose.test.mjs test/reply.test.mjs test/ocr.test.mjs test/subtitle-check.test.mjs test/routing.test.mjs test/asr.test.mjs"
-                },
-    "engines":  {
-                    "node":  "\u003e=20",
-                    "dsh":  "\u003e=0.2.0-rc.1 \u003c0.3.0-0"
-                },
-    "dsh":  {
-                "bundle":  {
-                               "patch":  "./cordis.patch.yml"
-                           }
-            },
-    "peerDependencies":  {
-                             "@deepseek-ai/dsh-mcp-client":  "\u003e=0.1.0-rc.2 || \u003e=0.2.0-rc.2"
-                         },
-    "dependencies":  {
-
-                     }
+{
+  "name": "dsh-bili-fish",
+  "version": "0.1.1",
+  "description": "召唤型 B 站视频阅读工具：被 @ 时读懂视频（字幕/OCR/ASR），按关键词强制分流，把结论回到楼中楼 / A summonable Bilibili video reader for DeepSeek Harness",
+  "license": "MIT",
+  "type": "module",
+  "main": "./mcp/dsh-plugin.mjs",
+  "bin": {
+    "bili-fish": "./bin/fish.mjs"
+  },
+  "exports": {
+    ".": "./mcp/dsh-plugin.mjs",
+    "./server": "./mcp/server.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "mcp",
+    "python",
+    "web",
+    "docs",
+    "tools",
+    "cordis.patch.yml",
+    "requirements.txt",
+    "CHANGELOG.md",
+    "README.md",
+    "fish-serve.cmd",
+    "fish-once.cmd",
+    "fish-web.cmd"
+  ],
+  "scripts": {
+    "see": "node bin/fish.mjs see",
+    "summary": "node bin/fish.mjs summary",
+    "test": "node --test test/compose.test.mjs test/reply.test.mjs test/ocr.test.mjs test/subtitle-check.test.mjs test/routing.test.mjs test/asr.test.mjs"
+  },
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.2 || >=0.2.0-rc.2"
+  },
+  "dependencies": {}
 }
