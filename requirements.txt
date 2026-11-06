@@ -1,4 +1,10 @@
-# OCR 探针与抽帧识别用（只有走 OCR 那条腿才需要）
+﻿# OCR 探针与抽帧识别用（走 OCR 那条腿才需要）
 # 安装：pip install -r requirements.txt
 pillow>=10.0
 rapidocr-onnxruntime>=1.3
+
+# 语音转写用（没有字幕、画面也没字时才需要）
+faster-whisper>=1.0
+# ⚠️ av 必须 <14：faster-whisper 1.2.1 调 av.open(metadata_errors=...)，av 19 已不认这个参数，
+#    不锁版本会在转写时抛 "open() got an unexpected keyword argument 'metadata_errors'"
+av>=11,<14

@@ -254,12 +254,34 @@ flowchart TD
 |---|---|
 | ① 入口 / ② 准入 | `lib/serve.mjs` · `lib/feed.mjs` · `lib/bili.mjs` · `lib/store.mjs` |
 | ③ 召唤指令 | `lib/routing.mjs` · `lib/config.mjs` |
-| ④ 素材 | `lib/media.mjs` · `lib/subtitle-check.mjs` · `lib/probe.mjs` · `lib/ocr.mjs` · `python/probe.py` · `python/ocr.py` |
+| ④ 素材 | `lib/media.mjs` · `lib/subtitle-check.mjs` · `lib/probe.mjs` · `lib/ocr.mjs` · `lib/asr.mjs` · `python/probe.py` · `python/ocr.py` · `python/asr.py` |
 | ⑤ 生成 | `lib/compose.mjs` · `lib/model.mjs` |
 | ⑥ 回复 | `lib/reply.mjs` · `lib/bili.mjs` |
 | ⑦ 落盘 | `lib/runs.mjs` · `web/server.mjs` |
 
 > 网页控制台的「架构图」Tab 画的是同一张图（纯 HTML/CSS，不依赖外部资源）。
+
+### 素材三级的级联
+
+一条视频到底走哪条腿，是**逐级降级**的，不是二选一：
+
+| 顺序 | 用的是什么 | 什么时候用 | 成本 |
+|---|---|---|---|
+| 1 | **官方字幕** | 有字幕轨，且通过 A+B 闸门（不是歌词、跟标题对得上） | 几秒 |
+| 2 | **抽帧 OCR** | 没字幕 / 字幕被否决 / 你写了「看画面」 | 下载整片 + 逐帧识别，约 1 分钟 |
+| 3 | **语音转写** | 前两级都拿不到足够文字 | 只下音轨（1-2MB）+ 转写，约 1-7 分钟 |
+
+第 3 级的触发条件有两个：
+
+- 判定就是 `asr`（没有字幕，探针说画面也没字）
+- **OCR 跑完但只读到很少的字**（默认 < 80 字，`asr.ocrFallbackMinChars` 可调）——画面没字，那就只能听了
+
+> 强制指定时（`用字幕` / `看画面`）**不走级联**：用户点名的路走不通就如实报错，不偷偷换路。
+>
+> **音质说明**：中文口播用 `small` 模型，实测 22 分钟课程转写 424 秒（约 0.3× 实时）。
+> 代价是专业词容易错（实测「函数」→「寒树」、「高等数学」→「高顿数学」）。
+> 想要更准就改 `config.asr.model` 为 `medium` 或 `large-v3`（模型更大、更慢）。
+> 所以这条腿只当兜底用——有字幕或画面有字时，永远不会走到它。
 
 ---
 

@@ -19,6 +19,7 @@ import { detectStyle, toTimedText, mergeSentences, buildPrompt, selfCheck, fmt }
 import { askModel } from '../lib/model.mjs'
 import { getSession, rememberSession } from '../lib/sessions.mjs'
 import { ocrVideo } from '../lib/ocr.mjs'
+import { asrVideo } from '../lib/asr.mjs'
 import { newRun, writeArtifact, appendIndex, stats, listRuns } from '../lib/runs.mjs'
 import { checkSubtitleQuality } from '../lib/subtitle-check.mjs'
 import { SOURCES, MODES, MODE_LABEL, SOURCE_LABEL } from '../lib/routing.mjs'
@@ -187,6 +188,37 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
   const tier = report.verdict?.tier
   if (tier === 'ocr') {
     const r = await ocrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
+    // ⚠️ ocrVideo 返回的是 B站字幕形状 {from,to,content}，要先过 toTimedText 才是 {t,c}
+    const ocrLines = toTimedText(r.lines)
+    const ocrChars = ocrLines.reduce((n, l) => n + l.c.length, 0)
+    const minChars = Number(config().asr?.ocrFallbackMinChars) || 80
+
+    /**
+     * 自动模式的级联（2026-11-06）：OCR 读到的字太少 → 说明画面真的没什么字，
+     * 该换"听"了。强制 OCR（--source ocr）不走这条兜底——用户点名要画面。
+     */
+    if (ocrChars < minChars) {
+      try {
+        const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
+        return {
+          tier: 'asr',
+          raw: toTimedText(a.raw),
+          merged: toTimedText(a.lines),
+          note: `画面只读到 ${ocrChars} 字（< ${minChars}）→ 改用语音转写 · ${a.model} 模型 · 音轨 ${a.audioMB}MB · `
+            + `转写 ${a.raw.length} 句 → 拼成 ${a.lines.length} 段（${a.charsPerMinute} 字/分）`,
+        }
+      } catch (e) {
+        // ASR 也不成，就把 OCR 那点东西留下（有总比没有强），并说明为什么没升级
+        return {
+          tier: 'ocr',
+          raw: toTimedText(r.raw),
+          merged: toTimedText(r.lines),
+          note: `OCR ${r.frameCount} 帧 → 去重 ${r.raw.length} 行 → 拼成 ${r.lines.length} 段 · 下载 ${r.downloadedMB}MB`
+            + `（画面只有 ${ocrChars} 字，语音转写也没成：${e.message}）`,
+        }
+      }
+    }
+
     return {
       tier: 'ocr',
       raw: toTimedText(r.raw),
@@ -194,9 +226,19 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
       note: `OCR ${r.frameCount} 帧（${r.intervalSec}s/帧）→ 去重 ${r.raw.length} 行 → 拼成 ${r.lines.length} 段 · 下载 ${r.downloadedMB}MB`,
     }
   }
+
+  if (tier === 'asr') {
+    const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
+    return {
+      tier: 'asr',
+      raw: toTimedText(a.raw),
+      merged: toTimedText(a.lines),
+      note: `语音转写 · ${a.model} 模型 · 音轨 ${a.audioMB}MB · 转写 ${a.raw.length} 句 → 拼成 ${a.lines.length} 段（${a.charsPerMinute} 字/分）`,
+    }
+  }
+
   throw new Error(
-    `没有字幕，且判定是 ${tier ?? '未知'}（${report.verdict?.why ?? '无判定'}）。` +
-    `ASR 那条腿还没做（M4）。`,
+    `没有字幕，判定是 ${tier ?? '未知'}（${report.verdict?.why ?? '无判定'}），OCR 与语音转写都拿不到可用内容。`,
   )
 }
 
