@@ -7,8 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseCommand, normalizeText, buildStatusLine } from '../lib/routing.mjs'
-import { config } from '../lib/config.mjs'
-import { DEFAULTS } from '../lib/config.mjs'
+import { config, DEFAULTS } from '../lib/config.mjs'
 import { splitForBili, cutAtBoundary } from '../lib/reply.mjs'
 import { truncateArchiveBody, failureReplyText, cleanErrorText } from '../lib/serve.mjs'
 
@@ -425,7 +424,7 @@ test('quiet：没写悄悄就是 false（不是 undefined）', () => {
 })
 
 test('词表：除静默外每组只留一个词（收词后不该再有同义词）', () => {
-  const k = config().routing.keywords
+  const k = DEFAULTS.routing.keywords
   for (const [g, ws] of Object.entries(k)) {
     if (g === 'quiet') continue // 静默有两个：悄悄 / 静默
     assert.equal(ws.length, 1, `${g} 应该只有一个词，实际 ${JSON.stringify(ws)}`)
@@ -435,7 +434,8 @@ test('词表：除静默外每组只留一个词（收词后不该再有同义�
 })
 
 test('词表：三级素材源都有词（用字幕 / 用OCR / 用ASR）', () => {
-  const k = config().routing.keywords
+  // 断出厂默认值，不读用户的 config.json —— 用户随时可能自己加同义词
+  const k = DEFAULTS.routing.keywords
   assert.deepEqual(k.forceSubtitle, ['用字幕'])
   assert.deepEqual(k.forceOcr, ['用OCR'])
   assert.deepEqual(k.forceAsr, ['用ASR'])
