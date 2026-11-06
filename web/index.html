@@ -124,6 +124,15 @@ h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
 .badge.skip, .badge.neutral { color: var(--muted); background: rgba(143, 161, 179, .07); border-color: rgba(143, 161, 179, .16); }
 /* 静默：没发到评论区，只落本地，属于「必须回来处理」的欠账，用蓝紫色单独标出来 */
 .badge.quiet { color: var(--violet); background: rgba(167, 139, 250, .11); border-color: rgba(167, 139, 250, .3); }
+/* 形态徽标（2026-11-06）：四档输出形态各一个色，未记录=灰 */
+.badge.mode-archive { color: var(--cyan, #67e8f9); background: rgba(103, 232, 249, .08); border-color: rgba(103, 232, 249, .22); }
+.badge.mode-summary { color: var(--green); background: rgba(74, 222, 128, .07); border-color: rgba(74, 222, 128, .18); }
+.badge.mode-view { color: var(--fg-dim, #94a3b8); background: rgba(148, 163, 184, .07); border-color: rgba(148, 163, 184, .18); }
+.badge.mode-both { color: var(--amber); background: rgba(251, 191, 36, .07); border-color: rgba(251, 191, 36, .18); }
+.badge.mode-neutral { color: var(--fg-muted, #6b7d8f); background: rgba(107, 125, 143, .07); border-color: rgba(107, 125, 143, .18); }
+
+/* 历史页两个筛选下拉：窄一点，别把工具栏挤爆 */
+#modeSel, #sourceSel { min-width: 132px; }
 
 /* ── Tab ── */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
@@ -642,6 +651,24 @@ pre.transcript {
           <button type="button" class="hist-quiet" data-hist="quiet" title="没发到评论区、只写在本地的记录，需要回来处理">静默 <span class="count" id="cntQuiet">0</span></button>
         </div>
         <div class="history-tools">
+          <label for="modeSel">形态</label>
+          <select id="modeSel" class="input">
+            <option value="">全部形态</option>
+            <option value="archive">归档（0 token）</option>
+            <option value="summary">只总结</option>
+            <option value="view">说看法</option>
+            <option value="both">总结加看法</option>
+            <option value="unknown">未记录（旧数据）</option>
+          </select>
+          <label for="sourceSel">素材源</label>
+          <select id="sourceSel" class="input">
+            <option value="">全部素材</option>
+            <option value="auto">自动判定</option>
+            <option value="subtitle">字幕</option>
+            <option value="ocr">画面 OCR</option>
+            <option value="asr">语音转写</option>
+            <option value="unknown">未记录（旧数据）</option>
+          </select>
           <label for="limitSel">显示</label>
           <select id="limitSel" class="input">
             <option value="100">100 条</option>
@@ -660,10 +687,10 @@ pre.transcript {
         <table class="history" aria-label="已处理记录">
           <colgroup>
             <col style="width:150px"><col style="width:130px"><col>
-            <col style="width:110px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
+            <col style="width:110px"><col style="width:96px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
           </colgroup>
           <thead>
-            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
+            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>形态</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -688,10 +715,10 @@ pre.transcript {
         <table class="history" aria-label="静默记录">
           <colgroup>
             <col style="width:150px"><col style="width:130px"><col>
-            <col style="width:110px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
+            <col style="width:110px"><col style="width:96px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
           </colgroup>
           <thead>
-            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
+            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>形态</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -1011,6 +1038,8 @@ const STATE = {
   commandDirty: false,
   history: null,
   histTab: 'handled',
+  histMode: '',
+  histSource: '',
   limit: 200,
   busy: false,
   loadingHistory: false,
@@ -2089,6 +2118,7 @@ function buildHandledRow(record) {
     h('td', { class: 'cell-bv' }, bv),
     h('td', { class: 'cell-title', title }, h('span', { class: 'title-text', text: title })),
     h('td', {}, h('span', { class: `badge ${record.resultKind || 'neutral'}`, text: record.resultLabel || record.result || '未知' })),
+    h('td', {}, h('span', { class: `badge mode-${record.modeKind || 'neutral'}`, text: record.modeLabel || '未记录' })),
     h('td', { class: 'cell-num' }, chars),
     h('td', { class: 'cell-rpid' }, replyRpid),
     h('td', { class: 'cell-run' }, run),
@@ -2146,14 +2176,26 @@ function renderRejectedRows(rows) {
   }
 }
 
+/** 按「形态 + 素材源」过滤（2026-11-06）。空字符串 = 不筛 */
+function filterByModeSource(rows) {
+  const mode = STATE.histMode
+  const source = STATE.histSource
+  if (!mode && !source) return rows
+  return rows.filter((r) => {
+    if (mode && (r.mode || 'unknown') !== mode) return false
+    if (source && (r.source || 'unknown') !== source) return false
+    return true
+  })
+}
+
 function renderHistory() {
   const data = STATE.history
   if (!data) return
-  const handled = data.handled || []
+  const handled = filterByModeSource(data.handled || [])
   const rejected = data.rejected || []
-  const quiet = data.quiet || []
-  const quietTotal = Number(data.stats?.totalQuiet ?? quiet.length) || 0
-  $('#cntHandled').textContent = String(data.stats?.totalHandled ?? handled.length)
+  const quiet = filterByModeSource(data.quiet || [])
+  const quietTotal = Number(data.stats?.totalQuiet ?? (data.quiet || []).length) || 0
+  $('#cntHandled').textContent = String(data.stats?.totalHandled ?? (data.handled || []).length)
   $('#cntRejected').textContent = String(data.stats?.totalRejected ?? rejected.length)
   $('#cntQuiet').textContent = String(quietTotal)
 
@@ -2493,6 +2535,16 @@ function bindEvents() {
   $('#limitSel').addEventListener('change', (event) => {
     STATE.limit = Number(event.target.value) || 200
     loadHistory()
+  })
+
+  /* 形态 / 素材源筛选：纯前端过滤，不重新拉数据 */
+  $('#modeSel').addEventListener('change', (event) => {
+    STATE.histMode = event.target.value
+    renderHistory()
+  })
+  $('#sourceSel').addEventListener('change', (event) => {
+    STATE.histSource = event.target.value
+    renderHistory()
   })
 
   $('#configForm').addEventListener('submit', (event) => {

@@ -45,6 +45,14 @@ const SAFE_RUN_ID = /^[A-Za-z0-9_-]{1,160}$/
 const SUMMARY_MAX = 400_000
 const TRANSCRIPT_HEAD_MAX = 6_000
 
+/** 输出形态（--mode）→ 展示名。旧记录没有这个字段，标「未记录」 */
+const MODE_META = {
+  archive: { label: '归档', kind: 'archive' },
+  summary: { label: '只总结', kind: 'summary' },
+  view: { label: '说看法', kind: 'view' },
+  both: { label: '总结加看法', kind: 'both' },
+}
+
 const RESULT_META = {
   replied: { label: '已回复', kind: 'ok' },
   dead: { label: '失败', kind: 'bad' },
@@ -374,8 +382,24 @@ function decorateHandled(record) {
       try { summaryExists = fs.statSync(path.join(runDir, 'summary.md')).isFile() } catch { /* 没有 summary */ }
     }
   }
+  // 旧记录没有 mode 字段：从 run.json 补一次（只对缺字段的读，数量很少）
+  let mode = typeof record.mode === 'string' ? record.mode : ''
+  let source = typeof record.source === 'string' ? record.source : ''
+  if ((!mode || !source) && runExists) {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(runDir, 'run.json'), 'utf8'))
+      if (!mode && typeof j.mode === 'string') mode = j.mode
+      if (!source && typeof j.source === 'string') source = j.source
+    } catch { /* 没有 run.json 就算了 */ }
+  }
+  const modeMeta = MODE_META[mode] ?? { label: mode || '未记录', kind: 'neutral' }
+
   return {
     ...record,
+    mode,
+    source,
+    modeLabel: modeMeta.label,
+    modeKind: modeMeta.kind,
     timeLocal: localStamp(record.at),
     resultLabel: meta.label,
     resultKind: meta.kind,
@@ -415,8 +439,12 @@ function buildHistory(limit) {
     totalQuiet: quietAll.length,
     totalHandled: handledAll.length,
     totalRejected: rejectedAll.length,
+    /** 按输出形态计数（筛选器的数字用） */
+    modes: { archive: 0, summary: 0, view: 0, both: 0, unknown: 0 },
   }
   for (const record of handledAll) {
+    const mk = MODE_META[record.mode] ? record.mode : 'unknown'
+    stats.modes[mk] += 1
     if (record.result === 'replied') {
       stats.totalReplied += 1
       if (localDateKey(record.at) === today) stats.todayReplied += 1
