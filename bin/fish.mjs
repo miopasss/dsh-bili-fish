@@ -46,7 +46,7 @@ fish —— 召唤型 B 站视频总结工具
   node bin/fish.mjs see <BV号或链接> [--no-probe] [--force-probe] [--json] [--p N]
   node bin/fish.mjs transcript <BV号或链接> [--ocr] [--p N]
   node bin/fish.mjs summary <BV号或链接> [--dry] [--force] [--ask "额外要求"] [--p N]
-                             [--source auto|subtitle|ocr] [--mode archive|summary|view|both]
+                             [--source auto|subtitle|ocr|asr] [--mode archive|summary|view|both]
   node bin/fish.mjs stats
   node bin/fish.mjs runs [BV号]
   node bin/fish.mjs serve [--dry] [--once] [--interval 30]
@@ -145,6 +145,18 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
       raw,
       merged,
       note: `字幕 ${raw.length} 句 → 拼成 ${merged.length} 段（召唤指令强制用字幕）`,
+    }
+  }
+
+  /* ── --source asr：字幕和画面都不看，只下音轨转写（2026-11-06 加） ── */
+  if (source === 'asr') {
+    const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
+    return {
+      tier: 'asr',
+      raw: a.raw,
+      merged: a.lines,
+      note: `语音转写 · ${a.model} 模型 · 音轨 ${a.audioMB}MB · 转写 ${a.raw.length} 句 → 拼成 ${a.lines.length} 段`
+        + `（${a.charsPerMinute} 字/分）（召唤指令强制听声音）`,
     }
   }
 

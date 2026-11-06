@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 召唤指令：@ 正文 → {source, mode, hits}（纯函数，不发任何请求）
  *
  * 2026-11-06：关键词强制素材源（字幕/画面 OCR）与四种输出形态
@@ -7,6 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseCommand, normalizeText, buildStatusLine } from '../lib/routing.mjs'
+import { config } from '../lib/config.mjs'
 import { DEFAULTS } from '../lib/config.mjs'
 import { splitForBili, cutAtBoundary } from '../lib/reply.mjs'
 import { truncateArchiveBody, failureReplyText, cleanErrorText } from '../lib/serve.mjs'
@@ -56,10 +57,12 @@ for (const [text, group, source, mode] of SIX) {
   })
 }
 
-test('六个词都放进同一句：hits 按原文顺序，source/mode 各取最后命中', () => {
-  // source 组最后出现的是「看画面」（forceOcr 里的 用OCR 被同组的后一个盖掉）；
-  // mode 组最后出现的是「总结和看法」
-  const r = parse('用字幕 用OCR 看画面，只总结，总结和看法')
+test('多词同句：hits 按原文顺序，source/mode 各取最后命中（用自定义词表）', () => {
+  const kw = {
+    forceSubtitle: ['用字幕'], forceOcr: ['用OCR', '看画面'],
+    archive: ['只拉文字版'], summaryOnly: ['只总结'], viewOnly: ['说说看法'], both: ['总结和看法'],
+  }
+  const r = parseCommand('用字幕 用OCR 看画面，只总结，总结和看法', kw)
   assert.equal(r.source, 'ocr')
   assert.equal(r.mode, 'both')
   assert.deepEqual(r.hits.map((h) => h.word), ['用字幕', '看画面', '只总结', '总结和看法'])
@@ -80,22 +83,25 @@ test('长词优先（自定义词表里有包含关系）：命中长词后短�
   assert.deepEqual(r.hits, [{ group: 'both', word: '总结加看法' }])
 })
 
-test('长词优先：「总结和看法」同样是 both', () => {
-  const r = parse('总结和看法')
+test('长词优先：「总结和看法」不会被拆成更短的词（自定义词表）', () => {
+  const kw = { summaryOnly: ['总结'], both: ['总结和看法'] }
+  const r = parseCommand('总结和看法', kw)
   assert.equal(r.mode, 'both')
   assert.deepEqual(r.hits.map((h) => h.group), ['both'])
 })
 
 /* ── ④ 同一组多个词命中 → 取最后出现的 ── */
 
-test('同组多词：forceSubtitle 取最后出现的「文字稿」', () => {
-  const r = parse('先别说用字幕，我还是要文字稿')
+test('同组多词：取最后出现的那个（自定义词表）', () => {
+  const kw = { forceSubtitle: ['用字幕', '文字稿'] }
+  const r = parseCommand('先别说用字幕，我还是要文字稿', kw)
   assert.equal(r.source, 'subtitle')
   assert.deepEqual(r.hits, [{ group: 'forceSubtitle', word: '文字稿' }])
 })
 
-test('同组多词：forceOcr 取最后出现的「强制OCR」', () => {
-  const r = parse('看画面吧，还是强制OCR吧')
+test('同组多词：forceOcr 同样取最后（自定义词表）', () => {
+  const kw = { forceOcr: ['用OCR', '强制OCR'] }
+  const r = parseCommand('用OCR吧，还是强制OCR吧', kw)
   assert.equal(r.source, 'ocr')
   assert.deepEqual(r.hits, [{ group: 'forceOcr', word: '强制OCR' }])
 })
@@ -396,4 +402,59 @@ test('stripAsk：不传 hits 时自己算', () => {
   const t = stripAsk(raw)
   assert.equal(t.includes('用字幕'), false)
   assert.ok(t.includes('这段讲得对吗'))
+})
+
+/* ── 静默（悄悄）── */
+test('quiet：命中悄悄 → quiet=true，且不影响 source/mode', () => {
+  const c = parseCommand('@它 悄悄看看这个')
+  assert.equal(c.quiet, true)
+  assert.equal(c.source, 'auto')
+  assert.equal(c.mode, 'view')
+})
+
+test('quiet：可和其它维度叠加', () => {
+  const c = parseCommand('@它 悄悄 用OCR 只要总结 这个说得对吗')
+  assert.equal(c.quiet, true)
+  assert.equal(c.source, 'ocr')
+  assert.equal(c.mode, 'summary')
+})
+
+test('quiet：没写悄悄就是 false（不是 undefined）', () => {
+  assert.equal(parseCommand('@它 看看这个').quiet, false)
+  assert.equal(parseCommand('').quiet, false)
+})
+
+test('词表：每组只留一个词（收词后不该再有同义词）', () => {
+  const k = config().routing.keywords
+  for (const [g, ws] of Object.entries(k)) {
+    assert.equal(ws.length, 1, `${g} 应该只有一个词，实际 ${JSON.stringify(ws)}`)
+  }
+  assert.deepEqual(Object.keys(k).sort(), ['archive', 'both', 'forceAsr', 'forceOcr', 'forceSubtitle', 'quiet', 'summaryOnly', 'viewOnly'])
+})
+
+test('词表：三级素材源都有词（用字幕 / 用OCR / 用ASR）', () => {
+  const k = config().routing.keywords
+  assert.deepEqual(k.forceSubtitle, ['用字幕'])
+  assert.deepEqual(k.forceOcr, ['用OCR'])
+  assert.deepEqual(k.forceAsr, ['用ASR'])
+  assert.deepEqual(k.quiet, ['悄悄'])
+})
+
+test('forceAsr：解析成 source=asr', () => {
+  assert.equal(parseCommand('@它 用ASR 看看这个').source, 'asr')
+  assert.equal(parseCommand('@它 用asr').source, 'asr')
+  assert.equal(parseCommand('@它 用 ASR').source, 'asr')
+})
+
+test('forceAsr：和静默 / 输出形态叠加', () => {
+  const c = parseCommand('@它 悄悄 用ASR 只要总结 这个说得对吗')
+  assert.equal(c.source, 'asr')
+  assert.equal(c.mode, 'summary')
+  assert.equal(c.quiet, true)
+})
+
+test('forceAsr：三个素材源互斥，取最后说的', () => {
+  assert.equal(parseCommand('@它 用字幕 用ASR').source, 'asr')
+  assert.equal(parseCommand('@它 用ASR 用字幕').source, 'subtitle')
+  assert.equal(parseCommand('@它 用OCR 用ASR 用OCR').source, 'ocr')
 })

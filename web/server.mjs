@@ -4,9 +4,10 @@
  *
  *   node web/server.mjs [--port 8787] [--open]
  *
- * 只做两件事：
+ * 只做三件事：
  *   ① 读写 HOME/config.json（表单 / 原始 JSON）
  *   ② 展示 HOME/handled.jsonl、rejected.jsonl 与 HOME/runs/<runId>/summary.md
+ *   ③ 把 handled.jsonl 里 result === 'quiet'（静默：没发到评论区，只留本地）的记录单独挑出来
  *
  * 安全边界（只监听 127.0.0.1 远远不够：浏览器里任何网页都能向回环端口发请求）：
  *   · 启动时生成一次性 token，打印在控制台；
@@ -48,9 +49,13 @@ const RESULT_META = {
   replied: { label: '已回复', kind: 'ok' },
   dead: { label: '失败', kind: 'bad' },
   blocked: { label: '风控熔断', kind: 'bad' },
+  quiet: { label: '静默', kind: 'quiet' },
   skipped_quota: { label: '跳过（额度）', kind: 'skip' },
   skipped_per_video: { label: '跳过（同视频）', kind: 'skip' },
 }
+
+/** 静默：@ 里带了「悄悄」，AI 不往评论区发任何东西，只写 runs/ 和 handled.jsonl */
+const QUIET_RESULT = 'quiet'
 
 const REASON_META = {
   not_whitelisted: { label: '不在白名单', kind: 'bad' },
@@ -397,6 +402,8 @@ function buildHistory(limit) {
   const rejectedRead = readJsonl(REJECTED_FILE)
   const handledAll = handledRead.records.slice().sort(byTimeDesc)
   const rejectedAll = rejectedRead.records.slice().sort(byTimeDesc)
+  // 静默记录是 handled 的子集：单独挑一份，不受 limit 影响（计数用），列表再截断
+  const quietAll = handledAll.filter((record) => record.result === QUIET_RESULT)
 
   const today = localDateKey(new Date())
   const stats = {
@@ -405,6 +412,7 @@ function buildHistory(limit) {
     totalReplied: 0,
     failed: 0,
     skipped: 0,
+    totalQuiet: quietAll.length,
     totalHandled: handledAll.length,
     totalRejected: rejectedAll.length,
   }
@@ -423,8 +431,9 @@ function buildHistory(limit) {
     ok: true,
     handled: handledAll.slice(0, limit).map(decorateHandled),
     rejected: rejectedAll.slice(0, limit).map(decorateRejected),
+    quiet: quietAll.slice(0, limit).map(decorateHandled),
     stats,
-    total: { handled: handledAll.length, rejected: rejectedAll.length },
+    total: { handled: handledAll.length, rejected: rejectedAll.length, quiet: quietAll.length },
     limit,
     badLines: { handled: handledRead.bad, rejected: rejectedRead.bad },
     files: {

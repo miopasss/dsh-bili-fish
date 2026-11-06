@@ -24,6 +24,7 @@
   --red: #f87171;
   --amber: #fbbf24;
   --blue: #60a5fa;
+  --violet: #a78bfa;
   --shadow: 0 14px 38px rgba(0, 0, 0, .38);
   --radius: 14px;
   --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
@@ -121,6 +122,8 @@ h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
 .badge.bad { color: var(--red); background: rgba(248, 113, 113, .08); border-color: rgba(248, 113, 113, .2); }
 .badge.warn { color: var(--amber); background: rgba(251, 191, 36, .08); border-color: rgba(251, 191, 36, .2); }
 .badge.skip, .badge.neutral { color: var(--muted); background: rgba(143, 161, 179, .07); border-color: rgba(143, 161, 179, .16); }
+/* 静默：没发到评论区，只落本地，属于「必须回来处理」的欠账，用蓝紫色单独标出来 */
+.badge.quiet { color: var(--violet); background: rgba(167, 139, 250, .11); border-color: rgba(167, 139, 250, .3); }
 
 /* ── Tab ── */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
@@ -151,6 +154,24 @@ h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
 .segmented button:hover { color: var(--text); }
 .segmented button.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
 .segmented .count { color: var(--faint); margin-left: 3px; font-variant-numeric: tabular-nums; }
+/* 静默分段：必须处理的欠账，用蓝紫 + 小圆点让它先被看见；数量为 0 时自动收敛成灰 */
+.segmented button.hist-quiet { color: #c4b5fd; }
+.segmented button.hist-quiet::before {
+  content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 6px; vertical-align: 1px;
+  background: var(--violet); box-shadow: 0 0 8px rgba(167, 139, 250, .9);
+}
+.segmented button.hist-quiet .count { color: var(--violet); font-weight: 650; }
+.segmented button.hist-quiet:hover { color: #ede9fe; }
+.segmented button.hist-quiet.active {
+  background: linear-gradient(180deg, rgba(167, 139, 250, .26), rgba(139, 92, 246, .16));
+  color: #ede9fe;
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, .38);
+}
+.segmented button.hist-quiet.active .count { color: #ddd6fe; }
+.segmented button.hist-quiet.is-zero:not(.active) { color: var(--faint); }
+.segmented button.hist-quiet.is-zero:not(.active)::before { background: var(--faint); box-shadow: none; }
+.segmented button.hist-quiet.is-zero:not(.active) .count { color: var(--faint); font-weight: 400; }
 
 .card {
   background: linear-gradient(180deg, rgba(20, 29, 38, .92), rgba(16, 24, 32, .92));
@@ -350,6 +371,7 @@ textarea.input { min-height: 92px; resize: vertical; }
 }
 .arch-tag.ok { color: var(--green); }
 .arch-tag.warn { color: var(--amber); }
+.arch-tag.quiet { color: var(--violet); }
 .arch-tree { color: var(--faint); font-family: var(--mono); font-size: 12px; }
 .arch-chip {
   color: #cfdae6; font-size: 12px; padding: 1px 7px; border-radius: 6px;
@@ -375,7 +397,7 @@ textarea.input { min-height: 92px; resize: vertical; }
 .arch-note { margin: 15px 0 0; color: var(--faint); font-size: 11.5px; text-align: center; }
 
 /* ── 历史统计 ── */
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .stat {
   position: relative; overflow: hidden; padding: 14px 16px;
   border: 1px solid var(--border); border-radius: 12px;
@@ -391,6 +413,9 @@ textarea.input { min-height: 92px; resize: vertical; }
 .stat.ok .stat-num { color: var(--green); --glow: rgba(74, 222, 128, .7); }
 .stat.bad .stat-num { color: var(--red); --glow: rgba(248, 113, 113, .7); }
 .stat.warn .stat-num { color: var(--amber); --glow: rgba(251, 191, 36, .7); }
+.stat.quiet { --glow: rgba(167, 139, 250, .75); border-color: rgba(167, 139, 250, .3); }
+.stat.quiet .stat-num { color: var(--violet); }
+.stat.quiet .stat-label { color: #c4b5fd; }
 
 .history-tools { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .history-tools select { width: auto; padding: 6px 9px; font-size: 12px; }
@@ -452,6 +477,25 @@ tr.detail-row > td { padding: 0; background: #0a1117; }
 .file-chip b { color: var(--text); font-weight: 500; }
 .detail-note { color: var(--faint); font-size: 12px; line-height: 1.65; }
 .detail-note .spinner { margin-right: 5px; }
+/* 静默记录的详情顶部提示：没发出去，内容只在本地 */
+.quiet-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 0 14px; padding: 11px 14px;
+  border: 1px solid rgba(167, 139, 250, .3); border-left: 3px solid var(--violet);
+  border-radius: 4px 10px 10px 4px;
+  background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .04));
+  color: #e4dcff; font-size: 12.5px; line-height: 1.7;
+}
+.quiet-banner .quiet-dot {
+  flex: 0 0 auto; width: 7px; height: 7px; margin-top: 8px; border-radius: 50%;
+  background: var(--violet); box-shadow: 0 0 9px rgba(167, 139, 250, .95);
+}
+.quiet-banner p { margin: 0; }
+.quiet-banner code {
+  font-family: var(--mono); font-size: 11.5px; color: #ddd6fe;
+  background: rgba(167, 139, 250, .14); padding: 1px 5px; border-radius: 4px;
+}
+.quiet-banner .quiet-sub { margin-top: 4px; color: #b9a9e9; font-size: 11.5px; }
 details.transcript-block, details.raw-meta { margin-top: 14px; }
 details.transcript-block summary, details.raw-meta summary { cursor: pointer; color: var(--muted); font-size: 12px; user-select: none; }
 details.transcript-block summary:hover, details.raw-meta summary:hover { color: var(--text); }
@@ -595,6 +639,7 @@ pre.transcript {
         <div class="segmented" id="histSwitch">
           <button type="button" class="active" data-hist="handled">已处理 <span class="count" id="cntHandled">0</span></button>
           <button type="button" data-hist="rejected">已拒绝 <span class="count" id="cntRejected">0</span></button>
+          <button type="button" class="hist-quiet" data-hist="quiet" title="没发到评论区、只写在本地的记录，需要回来处理">静默 <span class="count" id="cntQuiet">0</span></button>
         </div>
         <div class="history-tools">
           <label for="limitSel">显示</label>
@@ -638,6 +683,20 @@ pre.transcript {
         </table>
         <div id="rejectedEmpty" class="empty hidden"></div>
       </div>
+
+      <div class="table-wrap hidden" id="quietWrap">
+        <table class="history" aria-label="静默记录">
+          <colgroup>
+            <col style="width:150px"><col style="width:130px"><col>
+            <col style="width:110px"><col style="width:76px"><col style="width:140px"><col style="width:210px">
+          </colgroup>
+          <thead>
+            <tr><th>时间</th><th>BV</th><th>标题</th><th>结果</th><th>字数</th><th>回复 rpid</th><th>运行目录</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="quietEmpty" class="empty hidden"></div>
+      </div>
     </section>
 
     <section id="view-command" class="view hidden" role="tabpanel" aria-label="召唤指令">
@@ -665,33 +724,43 @@ pre.transcript {
             <tbody>
               <tr>
                 <td class="doc-what">强制用官方字幕</td>
-                <td><div class="kw-chips"><span class="kw-chip">用字幕</span><span class="kw-chip">强制字幕</span><span class="kw-chip">文字稿</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">用字幕</span></div></td>
                 <td class="doc-effect">跳过自动检验，有字幕就直接用；没有就报错</td>
               </tr>
               <tr>
                 <td class="doc-what">强制用画面文字</td>
-                <td><div class="kw-chips"><span class="kw-chip">用OCR</span><span class="kw-chip">看画面</span><span class="kw-chip">强制OCR</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">用OCR</span></div></td>
                 <td class="doc-effect">完全不看字幕，跑抽帧 OCR</td>
               </tr>
               <tr>
+                <td class="doc-what">强制用语音转写</td>
+                <td><div class="kw-chips"><span class="kw-chip">用ASR</span></div></td>
+                <td class="doc-effect">字幕和画面都不看，只下音轨跑语音转写（faster-whisper）</td>
+              </tr>
+              <tr>
                 <td class="doc-what">只拉文字稿不调模型</td>
-                <td><div class="kw-chips"><span class="kw-chip">只拉文字版</span><span class="kw-chip">归档模式</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">只拉文字版</span></div></td>
                 <td class="doc-effect">0 token，把完整文字稿贴进评论（最多 3 楼，超了截断）</td>
               </tr>
               <tr>
                 <td class="doc-what">只要总结</td>
-                <td><div class="kw-chips"><span class="kw-chip">只要总结</span><span class="kw-chip">只总结</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">只要总结</span></div></td>
                 <td class="doc-effect">只总结视频讲了什么</td>
               </tr>
               <tr>
                 <td class="doc-what">只要看法（默认）</td>
-                <td><div class="kw-chips"><span class="kw-chip">说说看法</span><span class="kw-chip">你怎么看</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">说说看法</span></div></td>
                 <td class="doc-effect">说说你怎么看</td>
               </tr>
               <tr>
                 <td class="doc-what">两样都要</td>
-                <td><div class="kw-chips"><span class="kw-chip">总结加看法</span><span class="kw-chip">总结和看法</span></div></td>
+                <td><div class="kw-chips"><span class="kw-chip">总结加看法</span></div></td>
                 <td class="doc-effect">先总结再说看法</td>
+              </tr>
+              <tr>
+                <td class="doc-what">静默：只留本地，不发评论</td>
+                <td><div class="kw-chips"><span class="kw-chip">悄悄</span></div></td>
+                <td class="doc-effect">不往评论区发任何东西，只写 runs/ 和 handled.jsonl；结果会落在历史页的「静默」分段</td>
               </tr>
             </tbody>
           </table>
@@ -699,8 +768,10 @@ pre.transcript {
         <div class="cmd-notes">
           <ul>
             <li>关键词<strong>不区分大小写</strong>，<code>用 OCR</code> 和 <code>用ocr</code> 都算。</li>
-            <li>长词优先：<code>总结加看法</code> 不会被当成 <code>只总结</code>。</li>
-            <li>没写任何关键词 → 走自动流程（默认「说说看法」）。</li>
+            <li>长词优先：<code>总结加看法</code> 不会被当成 <code>只要总结</code>。</li>
+            <li>素材源、输出形态、是否公开是三个维度，互不影响、可以一起写，例如 <code>用ASR</code> + <code>只要总结</code> + <code>悄悄</code>。</li>
+            <li><code>悄悄</code> 加在任何一条指令里都不发评论，只落本地和网页历史；历史页的「静默」分段就是这些欠账。</li>
+            <li>没写任何关键词 → 走自动流程（默认「说说看法」，正常公开回复）。</li>
           </ul>
         </div>
       </div>
@@ -778,19 +849,26 @@ pre.transcript {
           <article class="arch-stage blue">
             <div class="arch-num" aria-hidden="true">③</div>
             <div class="arch-main">
-              <div class="arch-head"><span class="arch-phase">指令</span><span class="arch-name">解析 @ 正文关键词</span></div>
+              <div class="arch-head"><span class="arch-phase">指令</span><span class="arch-name">解析 @ 正文关键词 · 长词优先 · 不区分大小写</span></div>
               <div class="arch-lane">
-                <span class="arch-chip"><code>lib/routing.mjs</code> 长词优先 · 不区分大小写</span>
+                <span class="arch-chip"><code>lib/routing.mjs</code> 三个维度各管各的，可以同时写</span>
               </div>
               <div class="arch-lane">
                 <span class="arch-tag">素材源</span>
                 <b class="arch-sep">→</b>
-                <span class="arch-chip">auto / 强制字幕 / 强制画面</span>
+                <span class="arch-chip">auto / 用字幕 / 用OCR / 用ASR</span>
               </div>
               <div class="arch-lane">
                 <span class="arch-tag">输出形态</span>
                 <b class="arch-sep">→</b>
-                <span class="arch-chip">归档<em>0 token</em> / 只总结 / 说看法 / 总结+看法</span>
+                <span class="arch-chip">只拉文字版<em>0 token</em> / 只要总结 / 说说看法 / 总结加看法</span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag quiet">是否公开</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">默认公开回复</span>
+                <b class="arch-sep">/</b>
+                <span class="arch-chip">悄悄<em>静默：只落本地与网页历史</em></span>
               </div>
               <div class="arch-files"><span class="arch-file">lib/routing.mjs</span><span class="arch-file">lib/config.mjs</span><span class="arch-file">config.json → routing.keywords</span></div>
             </div>
@@ -823,7 +901,7 @@ pre.transcript {
                 <b class="arch-sep">→</b>
                 <span class="arch-chip">探针</span>
                 <b class="arch-sep">→</b>
-                <span class="arch-chip">有字走 OCR / 没字走 ASR<em>未实现</em></span>
+                <span class="arch-chip">有字走 OCR / 没字走 ASR<em>faster-whisper</em></span>
               </div>
               <div class="arch-files">
                 <span class="arch-file">lib/media.mjs</span><span class="arch-file">lib/subtitle-check.mjs</span>
@@ -867,6 +945,11 @@ pre.transcript {
                 <b class="arch-sep">→</b>
                 <span class="arch-chip">回读校验</span>
               </div>
+              <div class="arch-lane">
+                <span class="arch-tag quiet">静默</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">这一步整段跳过<em>不发评论，只写 runs/</em></span>
+              </div>
               <div class="arch-files"><span class="arch-file">lib/reply.mjs</span><span class="arch-file">lib/bili.mjs</span></div>
             </div>
           </article>
@@ -885,6 +968,13 @@ pre.transcript {
                 <span class="arch-chip">fish runs / stats</span>
                 <b class="arch-sep">→</b>
                 <span class="arch-chip">本网页的历史页</span>
+              </div>
+              <div class="arch-lane">
+                <span class="arch-tag quiet">静默</span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">handled.jsonl<em>result = quiet</em></span>
+                <b class="arch-sep">→</b>
+                <span class="arch-chip">历史页「静默」分段<em>必须回来处理</em></span>
               </div>
               <div class="arch-files"><span class="arch-file">lib/runs.mjs</span><span class="arch-file">lib/store.mjs</span><span class="arch-file">web/server.mjs</span></div>
             </div>
@@ -988,24 +1078,28 @@ const FIELD_META = {
 
 const NUMBER_ARRAY_KEYS = new Set(['reply.partGapSec', 'risk.backoffMinutes'])
 
-/* 召唤指令词表：键名与 lib/config.mjs 的 DEFAULTS.routing.keywords 一一对应 */
+/* 召唤指令词表：键名与 lib/config.mjs 的 DEFAULTS.routing.keywords 一一对应（8 组 × 1 词） */
 const KEYWORD_GROUPS = [
-  { key: 'forceSubtitle', title: '强制用官方字幕', desc: '有字幕就直接用，跳过自动检验；没有字幕就报错。' },
-  { key: 'forceOcr', title: '强制用画面文字', desc: '完全不看字幕，直接跑抽帧 OCR。' },
-  { key: 'archive', title: '只拉文字稿（归档模式）', desc: '不调模型，0 token，把完整文字稿贴进评论（最多 3 楼，超了截断）。' },
-  { key: 'summaryOnly', title: '只要总结', desc: '只总结视频讲了什么。' },
-  { key: 'viewOnly', title: '只要看法（默认）', desc: '只说看法；一个关键词都没写时也走这个。' },
-  { key: 'both', title: '总结加看法', desc: '先总结，再说看法。' },
+  { key: 'forceSubtitle', title: '素材源 · 强制用官方字幕', desc: '有字幕就直接用，跳过自动检验；没有字幕就报错。' },
+  { key: 'forceOcr', title: '素材源 · 强制用画面文字', desc: '完全不看字幕，直接跑抽帧 OCR。' },
+  { key: 'forceAsr', title: '素材源 · 强制用语音转写', desc: '字幕和画面都不看，只下音轨跑 ASR（faster-whisper）。' },
+  { key: 'archive', title: '输出形态 · 只拉文字稿（归档模式）', desc: '不调模型，0 token，把完整文字稿贴进评论（最多 3 楼，超了截断）。' },
+  { key: 'summaryOnly', title: '输出形态 · 只要总结', desc: '只总结视频讲了什么。' },
+  { key: 'viewOnly', title: '输出形态 · 只要看法（默认）', desc: '只说看法；一个关键词都没写时也走这个。' },
+  { key: 'both', title: '输出形态 · 总结加看法', desc: '先总结，再说看法。' },
+  { key: 'quiet', title: '是否公开 · 静默（悄悄）', desc: '不往评论区发任何东西，只写 runs/ 和 handled.jsonl；结果在历史页「静默」里。' },
 ]
 
 /** config.json 里还没有 routing.keywords 时显示的默认值，与 lib/config.mjs 保持一致 */
 const KEYWORD_DEFAULTS = {
-  forceSubtitle: ['用字幕', '强制字幕', '文字稿'],
-  forceOcr: ['用OCR', '看画面', '强制OCR'],
-  archive: ['只拉文字版', '归档模式'],
-  summaryOnly: ['只要总结', '只总结'],
-  viewOnly: ['说说看法', '你怎么看'],
-  both: ['总结加看法', '总结和看法'],
+  forceSubtitle: ['用字幕'],
+  forceOcr: ['用OCR'],
+  forceAsr: ['用ASR'],
+  archive: ['只拉文字版'],
+  summaryOnly: ['只要总结'],
+  viewOnly: ['说说看法'],
+  both: ['总结加看法'],
+  quiet: ['悄悄'],
 }
 
 const KEYWORD_MAX_LEN = 20
@@ -1924,7 +2018,7 @@ function renderStats(stats) {
   const root = $('#stats')
   root.replaceChildren()
   if (!stats) {
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       root.append(h('div', { class: 'stat' },
         h('div', { class: 'stat-num', text: '—' }),
         h('div', { class: 'stat-label', text: '加载中…' }),
@@ -1932,11 +2026,13 @@ function renderStats(stats) {
     }
     return
   }
+  const quiet = Number(stats.totalQuiet ?? 0) || 0
   const items = [
     { label: '今日已回', value: stats.todayReplied, tone: 'ok', sub: stats.today || '' },
     { label: '累计已回', value: stats.totalReplied, tone: '', sub: `已处理 ${stats.totalHandled} 条` },
     { label: '失败', value: stats.failed, tone: stats.failed ? 'bad' : '', sub: '生成失败 + 风控熔断' },
     { label: '已拒绝', value: stats.totalRejected, tone: stats.totalRejected ? 'warn' : '', sub: '非白名单 / 队列满' },
+    { label: '静默', value: quiet, tone: quiet ? 'quiet' : '', sub: '没发到评论区 · 待处理' },
   ]
   for (const item of items) {
     root.append(h('div', { class: `stat ${item.tone}` },
@@ -2001,6 +2097,24 @@ function buildHandledRow(record) {
   return tr
 }
 
+/** 静默列表：行结构和「已处理」完全一样（复用 buildHandledRow），只是数据源被静默过滤过 */
+function renderQuietRows(rows) {
+  const table = $('#quietWrap table')
+  const tbody = $('#quietWrap tbody')
+  const empty = $('#quietEmpty')
+  tbody.replaceChildren()
+  table.classList.toggle('hidden', rows.length === 0)
+  empty.classList.toggle('hidden', rows.length > 0)
+  if (!rows.length) {
+    empty.replaceChildren(
+      h('div', { class: 'big', text: '✓' }),
+      h('div', { text: '没有静默记录，暂时没有欠账。' }),
+    )
+    return
+  }
+  for (const record of rows) tbody.append(buildHandledRow(record))
+}
+
 function renderRejectedRows(rows) {
   const table = $('#rejectedWrap table')
   const tbody = $('#rejectedWrap tbody')
@@ -2037,17 +2151,24 @@ function renderHistory() {
   if (!data) return
   const handled = data.handled || []
   const rejected = data.rejected || []
+  const quiet = data.quiet || []
+  const quietTotal = Number(data.stats?.totalQuiet ?? quiet.length) || 0
   $('#cntHandled').textContent = String(data.stats?.totalHandled ?? handled.length)
   $('#cntRejected').textContent = String(data.stats?.totalRejected ?? rejected.length)
+  $('#cntQuiet').textContent = String(quietTotal)
 
   renderHandledRows(handled)
   renderRejectedRows(rejected)
+  renderQuietRows(quiet)
 
   $$('#histSwitch button').forEach((button) => {
     button.classList.toggle('active', button.dataset.hist === STATE.histTab)
   })
+  const quietButton = $('#histSwitch button[data-hist="quiet"]')
+  if (quietButton) quietButton.classList.toggle('is-zero', quietTotal === 0)
   $('#handledWrap').classList.toggle('hidden', STATE.histTab !== 'handled')
   $('#rejectedWrap').classList.toggle('hidden', STATE.histTab !== 'rejected')
+  $('#quietWrap').classList.toggle('hidden', STATE.histTab !== 'quiet')
 
   const messages = []
   const bad = (data.badLines?.handled ?? 0) + (data.badLines?.rejected ?? 0)
@@ -2057,6 +2178,9 @@ function renderHistory() {
   }
   if (data.total?.rejected > rejected.length) {
     messages.push(`已拒绝只显示最近 ${rejected.length} / ${data.total.rejected} 条`)
+  }
+  if (Number(data.total?.quiet ?? 0) > quiet.length) {
+    messages.push(`静默只显示最近 ${quiet.length} / ${data.total.quiet} 条`)
   }
   const notice = $('#histNotice')
   if (messages.length) {
@@ -2110,7 +2234,26 @@ function toggleDetail(tr) {
   if (record.runId) loadRunInto(container, record)
 }
 
+/** 静默记录的详情提示：没发到评论区，内容只在本地 */
+function buildQuietBanner(record) {
+  const sub = !record.runId
+    ? '这条记录没有关联运行目录，本地可能找不到 summary.md。'
+    : (record.summaryExists === false ? '运行目录里没有 summary.md，可以看下面的目录文件。' : '')
+  return h('div', { class: 'quiet-banner' },
+    h('span', { class: 'quiet-dot' }),
+    h('div', {},
+      h('p', {},
+        '这条没发到评论区，只存在本地。想看内容就往下翻 ',
+        h('code', { text: 'summary.md' }),
+        '。',
+      ),
+      sub ? h('p', { class: 'quiet-sub', text: sub }) : null,
+    ),
+  )
+}
+
 function renderDetailShell(container, record) {
+  if (record.result === 'quiet') container.append(buildQuietBanner(record))
   const head = h('div', { class: 'detail-head' },
     h('div', {},
       h('h4', { text: record.runId ? `运行 ${record.runId}` : '这条记录没有关联运行目录' }),
@@ -2398,14 +2541,16 @@ function bindEvents() {
     renderHistory()
   })
 
-  $('#handledWrap').addEventListener('click', handleHandledClick)
-  $('#handledWrap').addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    const tr = event.target.closest('tr.hist-row')
-    if (!tr) return
-    event.preventDefault()
-    toggleDetail(tr)
-  })
+  for (const wrapId of ['#handledWrap', '#quietWrap']) {
+    $(wrapId).addEventListener('click', handleHandledClick)
+    $(wrapId).addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      const tr = event.target.closest('tr.hist-row')
+      if (!tr) return
+      event.preventDefault()
+      toggleDetail(tr)
+    })
+  }
 
   window.addEventListener('hashchange', () => {
     const view = viewFromHash()
