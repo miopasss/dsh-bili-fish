@@ -202,8 +202,8 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
         const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
         return {
           tier: 'asr',
-          raw: toTimedText(a.raw),
-          merged: toTimedText(a.lines),
+          raw: a.raw,
+          merged: a.lines,
           note: `画面只读到 ${ocrChars} 字（< ${minChars}）→ 改用语音转写 · ${a.model} 模型 · 音轨 ${a.audioMB}MB · `
             + `转写 ${a.raw.length} 句 → 拼成 ${a.lines.length} 段（${a.charsPerMinute} 字/分）`,
         }
@@ -231,8 +231,8 @@ async function computeMaterial(report, { source = 'auto' } = {}) {
     const a = await asrVideo({ bvid: report.bvid, cid: report.video.cid, duration: report.video.duration })
     return {
       tier: 'asr',
-      raw: toTimedText(a.raw),
-      merged: toTimedText(a.lines),
+      raw: a.raw,
+      merged: a.lines,
       note: `语音转写 · ${a.model} 模型 · 音轨 ${a.audioMB}MB · 转写 ${a.raw.length} 句 → 拼成 ${a.lines.length} 段（${a.charsPerMinute} 字/分）`,
     }
   }
