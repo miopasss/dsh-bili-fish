@@ -8,3 +8,6 @@ faster-whisper>=1.0
 # ⚠️ av 必须 <14：faster-whisper 1.2.1 调 av.open(metadata_errors=...)，av 19 已不认这个参数，
 #    不锁版本会在转写时抛 "open() got an unexpected keyword argument 'metadata_errors'"
 av>=11,<14
+
+# 扫码登录的二维码渲染（控制台「未登录」按钮用）
+qrcode>=7.4

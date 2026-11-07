@@ -25,6 +25,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { HOME } from '../lib/paths.mjs'
+import { loginStatus, startLogin, pollLogin } from '../lib/login.mjs'
 
 const WEB_DIR = import.meta.dirname
 const INDEX_HTML = path.join(WEB_DIR, 'index.html')
@@ -865,6 +866,28 @@ async function handler(req, res) {
       }
       if (method === 'POST') return await handleSaveConfig(req, res)
       return methodNotAllowed(res, ['GET', 'HEAD', 'POST'])
+    }
+
+    /* ── 扫码登录（2026-11-07）──
+       SESSDATA 失效后 B站没有 refresh token，只能重新扫码。
+       这里只暴露「申请二维码 / 轮询」，不碰密码、不碰验证码。 */
+    if (url.pathname === '/api/login/status' && isGet) {
+      return sendJson(res, 200, { ok: true, ...(await loginStatus()) })
+    }
+
+    if (url.pathname === '/api/login/start' && method === 'POST') {
+      try {
+        const q = await startLogin()
+        return sendJson(res, 200, { ok: true, qrcodeKey: q.qrcodeKey, svg: q.svg })
+      } catch (e) {
+        return sendJson(res, 500, { ok: false, error: e?.message ?? String(e) })
+      }
+    }
+
+    if (url.pathname === '/api/login/poll' && isGet) {
+      const key = String(url.searchParams.get('key') ?? '')
+      const r = await pollLogin(key)
+      return sendJson(res, 200, { ok: r.state !== 'error', ...r })
     }
 
     if (url.pathname === '/api/history' && isGet) {

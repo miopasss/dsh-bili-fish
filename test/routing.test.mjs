@@ -476,3 +476,33 @@ test('claimJob：第一次能抢到，第二次抢不到（跨进程互斥）', 
 test('releaseClaim：没抢过也能安全调用', () => {
   assert.doesNotThrow(() => releaseClaim('never-claimed-' + Date.now()))
 })
+
+/* ── 扫码登录的纯函数（2026-11-07）── */
+import { parseAuthUrl, parseSetCookie } from '../lib/login.mjs'
+
+test('parseAuthUrl：从登录成功后的 url 里取 cookie', () => {
+  const u = 'https://www.bilibili.com?DedeUserID=12345&DedeUserID__ckMd5=abc123&SESSDATA=xyz%2Cdef&bili_jct=csrf456&gourl=https%3A%2F%2Fwww.bilibili.com'
+  assert.deepEqual(parseAuthUrl(u), {
+    sessdata: 'xyz,def',
+    bili_jct: 'csrf456',
+    dedeuserid: '12345',
+    dedeuserid_ckmd5: 'abc123',
+  })
+})
+
+test('parseAuthUrl：没有查询串时返回空对象', () => {
+  assert.deepEqual(parseAuthUrl(''), {})
+  assert.deepEqual(parseAuthUrl('https://www.bilibili.com'), {})
+})
+
+test('parseSetCookie：从 Set-Cookie 兜底解析', () => {
+  const list = [
+    'SESSDATA=abc%2Cdef; Path=/; Domain=.bilibili.com; HttpOnly',
+    'bili_jct=csrf789; Path=/',
+    'DedeUserID=999; Path=/',
+    'buvid3=ignored; Path=/',
+  ]
+  assert.deepEqual(parseSetCookie(list), {
+    sessdata: 'abc,def', bili_jct: 'csrf789', dedeuserid: '999',
+  })
+})

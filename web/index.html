@@ -543,6 +543,33 @@ pre.transcript {
 .spinner { width: 13px; height: 13px; border: 2px solid rgba(94, 234, 212, .2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; vertical-align: -2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── 登录状态徽标 + 扫码弹窗（2026-11-07）── */
+.login-badge { border: 1px solid var(--line, #2a3644); background: transparent; cursor: pointer;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-family: inherit; }
+.login-badge.ok { color: var(--green); border-color: rgba(74, 222, 128, .3); }
+.login-badge.bad { color: var(--red, #f87171); border-color: rgba(248, 113, 113, .35); }
+.login-badge.unknown { color: var(--muted); }
+
+.modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 10, 16, .72); backdrop-filter: blur(2px); }
+.modal-card { width: min(420px, calc(100vw - 32px)); background: var(--panel, #111823);
+  border: 1px solid var(--line, #2a3644); border-radius: 14px; padding: 18px 18px 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.modal-head h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.modal-sub { margin: 0 0 12px; font-size: 12.5px; line-height: 1.6; color: var(--fg-dim, #94a3b8); }
+.modal-sub code { font-size: 11.5px; }
+.qr-box { display: flex; align-items: center; justify-content: center; min-height: 220px;
+  background: #fff; border-radius: 10px; padding: 10px; }
+.qr-box svg { width: 100%; max-width: 240px; height: auto; display: block; }
+.login-state { margin: 10px 0 12px; font-size: 13px; text-align: center; color: var(--fg-dim, #94a3b8); min-height: 20px; }
+.login-state.ok { color: var(--green); }
+.login-state.bad { color: var(--red, #f87171); }
+.modal-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.icon-btn { background: none; border: none; color: var(--muted); font-size: 20px; line-height: 1;
+  cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.icon-btn:hover { color: var(--fg); }
+
 .toast {
   position: fixed; left: 50%; bottom: 26px; z-index: 100;
   transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
@@ -585,10 +612,28 @@ pre.transcript {
       </div>
     </div>
     <div class="top-actions">
+      <button id="btnLogin" class="conn login-badge unknown" type="button" title="点这里扫码重新登录">登录状态 …</button>
       <span id="conn" class="conn loading"><span class="spinner"></span> 连接中…</span>
       <button id="btnReload" class="btn ghost" type="button">刷新</button>
     </div>
   </header>
+
+  <!-- ── 扫码登录弹窗（2026-11-07）── -->
+  <div id="loginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="loginTitle">扫码登录 B 站</h3>
+        <button id="btnLoginClose" class="icon-btn" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="modal-sub">打开 B 站手机 App → 右上角扫一扫。扫码后 cookie 会自动写进 <code>credentials.json</code>，不用手抄。</p>
+      <div class="qr-box" id="qrBox"><span class="spinner"></span></div>
+      <p class="login-state" id="loginState">正在申请二维码…</p>
+      <div class="modal-foot">
+        <button id="btnLoginRetry" class="btn ghost" type="button">换一张</button>
+        <button id="btnLoginDone" class="btn primary" type="button">完成</button>
+      </div>
+    </div>
+  </div>
 
   <div class="pathbar">
     <span class="path-label">配置文件</span>
@@ -1293,6 +1338,89 @@ async function api(url, options = {}) {
     throw error
   }
   return data ?? {}
+}
+
+/* ───────────────────────── 扫码登录（2026-11-07） ───────────────────────── */
+
+let loginTimer = null
+
+/** 顶栏徽标：反映当前 SESSDATA 是否还有效 */
+async function refreshLoginBadge() {
+  const btn = $('#btnLogin')
+  if (!btn) return
+  try {
+    const r = await api('/api/login/status')
+    if (r.loggedIn) {
+      btn.className = 'conn login-badge ok'
+      btn.textContent = '✓ ' + (r.uname || '已登录')
+      btn.title = `已登录 mid=${r.mid} · 点这里重新扫码`
+    } else {
+      btn.className = 'conn login-badge bad'
+      btn.textContent = '⚠ 未登录'
+      btn.title = (r.error || '登录已失效') + ' · 点这里扫码重新登录'
+    }
+  } catch (e) {
+    btn.className = 'conn login-badge unknown'
+    btn.textContent = '登录状态未知'
+    btn.title = e.message
+  }
+}
+
+/** 申请二维码并塞进弹窗 */
+async function startLoginFlow() {
+  const box = $('#qrBox')
+  const state = $('#loginState')
+  box.replaceChildren(h('span', { class: 'spinner' }))
+  state.className = 'login-state'
+  state.textContent = '正在申请二维码…'
+  clearInterval(loginTimer)
+
+  let r
+  try {
+    r = await api('/api/login/start', { method: 'POST' })
+  } catch (e) {
+    box.replaceChildren()
+    state.className = 'login-state bad'
+    state.textContent = '申请二维码失败：' + e.message
+    return
+  }
+  // 后端给的是 SVG 字符串，直接插入（同源、我们自己生成，无脚本）
+  box.innerHTML = r.svg
+  state.textContent = '等待扫码…'
+
+  const key = r.qrcodeKey
+  loginTimer = setInterval(async () => {
+    let p
+    try {
+      p = await api('/api/login/poll?key=' + encodeURIComponent(key))
+    } catch { return }
+    if (p.state === 'waiting') return
+    if (p.state === 'scanned') { state.textContent = '已扫码，请在手机上确认'; return }
+    if (p.state === 'expired') {
+      state.className = 'login-state bad'
+      state.textContent = '二维码已过期，点「换一张」'
+      clearInterval(loginTimer)
+      return
+    }
+    if (p.state === 'ok') {
+      clearInterval(loginTimer)
+      state.className = 'login-state ok'
+      state.textContent = `登录成功，已更新 ${(p.saved?.fields || []).join(' / ')}`
+      box.replaceChildren(h('div', { class: 'big', text: '✓' }))
+      await refreshLoginBadge()
+      setTimeout(() => { $('#loginModal').classList.add('hidden') }, 1200)
+    }
+  }, 2000)
+}
+
+function openLoginModal() {
+  $('#loginModal').classList.remove('hidden')
+  startLoginFlow()
+}
+
+function closeLoginModal() {
+  clearInterval(loginTimer)
+  $('#loginModal').classList.add('hidden')
 }
 
 function setConn(kind, text) {
@@ -2631,6 +2759,18 @@ function bindEvents() {
   $('#btnDiscard').addEventListener('click', discardChanges)
   $('#btnFormat').addEventListener('click', formatRaw)
   $('#btnReload').addEventListener('click', reloadCurrent)
+
+  /* 扫码登录 */
+  $('#btnLogin').addEventListener('click', openLoginModal)
+  $('#btnLoginClose').addEventListener('click', closeLoginModal)
+  $('#btnLoginDone').addEventListener('click', closeLoginModal)
+  $('#btnLoginRetry').addEventListener('click', startLoginFlow)
+  $('#loginModal').addEventListener('click', (event) => {
+    if (event.target === $('#loginModal')) closeLoginModal()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !$('#loginModal').classList.contains('hidden')) closeLoginModal()
+  })
   $('#btnHistRefresh').addEventListener('click', loadHistory)
   $('#btnCopyPath').addEventListener('click', () => copyText($('#configPath').textContent, '配置文件路径'))
   $('#limitSel').addEventListener('change', (event) => {
@@ -2729,6 +2869,8 @@ async function init() {
   bindEvents()
   renderStats(null)
   setView(viewFromHash(), false)
+  // 登录态探一次（不阻塞其它加载）
+  refreshLoginBadge()
   await loadConfig()
   if (!STATE.history && !STATE.loadingHistory) loadHistory()
 }
