@@ -1,6 +1,6 @@
 {
   "name": "dsh-bili-fish",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "召唤型 B 站视频阅读工具：被 @ 时读懂视频（字幕/OCR/ASR），按关键词强制分流，把结论回到楼中楼 / A summonable Bilibili video reader for DeepSeek Harness",
   "license": "MIT",
   "type": "module",

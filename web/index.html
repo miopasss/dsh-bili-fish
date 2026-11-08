@@ -129,6 +129,16 @@ h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
 .badge.mode-summary { color: var(--green); background: rgba(74, 222, 128, .07); border-color: rgba(74, 222, 128, .18); }
 .badge.mode-view { color: var(--fg-dim, #94a3b8); background: rgba(148, 163, 184, .07); border-color: rgba(148, 163, 184, .18); }
 .badge.mode-both { color: var(--amber); background: rgba(251, 191, 36, .07); border-color: rgba(251, 191, 36, .18); }
+/* 预览：只落本地、没发评论的分析结果（虚线框，一眼看出"不是真的发出去了"） */
+.badge.preview { color: #c4b5fd; background: rgba(167, 139, 250, .06); border-style: dashed; border-color: rgba(167, 139, 250, .45); }
+
+/* 分析对象小标签：塞在标题前面，不额外占一列 */
+.tag-target { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 5px;
+  font-size: 11px; line-height: 16px; vertical-align: 1px; white-space: nowrap;
+  border: 1px solid var(--line, #2a3644); color: var(--fg-dim, #94a3b8); }
+.tag-target.comments { color: #7dd3fc; border-color: rgba(125, 211, 252, .35); }
+.tag-target.thread { color: #fcd34d; border-color: rgba(252, 211, 77, .35); }
+
 .badge.mode-neutral { color: var(--fg-muted, #6b7d8f); background: rgba(107, 125, 143, .07); border-color: rgba(107, 125, 143, .18); }
 
 /* 历史页两个筛选下拉：窄一点，别把工具栏挤爆 */
@@ -435,6 +445,19 @@ textarea.input { min-height: 92px; resize: vertical; }
 .history-tools select { width: auto; padding: 6px 9px; font-size: 12px; }
 
 /* ── 表格 ── */
+/* 预览分析条（2026-11-08）：跑一次分析只落本地，不发评论 */
+.analyze-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 10px 0 4px; padding: 10px 12px; border: 1px dashed var(--line, #2a3644); border-radius: 10px; }
+.analyze-label { font-size: 12.5px; color: var(--fg-dim, #94a3b8); }
+.analyze-bar .input { width: auto; min-width: 0; }
+.analyze-bar #anBvid { width: 150px; }
+.analyze-bar #anTarget { width: 110px; }
+.analyze-bar #anRoot { width: 170px; }
+.analyze-bar .btn { flex: 0 0 auto; }
+.analyze-state { font-size: 12.5px; color: var(--fg-dim, #94a3b8); }
+.analyze-state.ok { color: var(--green); }
+.analyze-state.bad { color: var(--red, #f87171); }
+
 .table-wrap {
   border: 1px solid var(--border); border-radius: 13px; overflow: auto;
   max-height: calc(100vh - 300px); min-height: 150px;
@@ -719,6 +742,13 @@ pre.transcript {
             <option value="asr">语音转写</option>
             <option value="unknown">未记录（旧数据）</option>
           </select>
+          <label for="targetSel">对象</label>
+          <select id="targetSel" class="input">
+            <option value="">全部对象</option>
+            <option value="video">视频正文</option>
+            <option value="comments">评论区</option>
+            <option value="thread">这层楼</option>
+          </select>
           <label for="limitSel">显示</label>
           <select id="limitSel" class="input">
             <option value="100">100 条</option>
@@ -728,6 +758,18 @@ pre.transcript {
           </select>
           <button id="btnHistRefresh" class="btn ghost small" type="button">刷新</button>
         </div>
+      </div>
+
+      <div class="analyze-bar">
+        <span class="analyze-label">预览分析</span>
+        <input id="anBvid" class="input narrow" type="text" placeholder="BV 号" spellcheck="false">
+        <select id="anTarget" class="input">
+          <option value="comments">评论区</option>
+          <option value="thread">这层楼</option>
+        </select>
+        <input id="anRoot" class="input narrow hidden" type="text" placeholder="root rpid（纯数字）" spellcheck="false">
+        <button id="btnAnalyze" class="btn primary small" type="button">开始分析</button>
+        <span id="anState" class="analyze-state"></span>
       </div>
 
       <div id="histError" class="notice error hidden"></div>
@@ -1186,6 +1228,7 @@ const STATE = {
   histTab: 'handled',
   histMode: '',
   histSource: '',
+  histTarget: '',
   limit: 200,
   busy: false,
   loadingHistory: false,
@@ -1338,6 +1381,54 @@ async function api(url, options = {}) {
     throw error
   }
   return data ?? {}
+}
+
+/* ───────────────────────── 预览分析（2026-11-08） ───────────────────────── */
+/**
+ * 在网页上直接跑一次评论分析：只落本地、记进历史，**不发任何评论**。
+ * 走 POST /api/analyze，底层是 node bin/fish.mjs summary <bv> --target <t>。
+ */
+async function runAnalyze() {
+  const state = $('#anState')
+  const btn = $('#btnAnalyze')
+  const bvid = ($('#anBvid').value || '').trim()
+  const target = $('#anTarget').value
+  const root = ($('#anRoot').value || '').trim()
+
+  state.className = 'analyze-state'
+  if (!/^BV[0-9A-Za-z]{10}$/.test(bvid)) {
+    state.className = 'analyze-state bad'
+    state.textContent = 'BV 号格式不对（形如 BV1xxxxxxxxx）'
+    return
+  }
+  if (target === 'thread' && !/^\d+$/.test(root)) {
+    state.className = 'analyze-state bad'
+    state.textContent = '「这层楼」要填 root rpid（纯数字）'
+    return
+  }
+
+  btn.disabled = true
+  state.textContent = '分析中…（拉评论 + 调模型，约 30-90 秒）'
+  try {
+    const r = await api('/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ bvid, target, root }),
+    })
+    state.className = 'analyze-state ok'
+    state.textContent = `完成：${r.text.length} 字，已记入历史（没有发到评论区）`
+    await loadHistory()
+  } catch (e) {
+    state.className = 'analyze-state bad'
+    state.textContent = '失败：' + e.message
+  } finally {
+    btn.disabled = false
+  }
+}
+
+/** 选「这层楼」时才显示 root 输入框 */
+function syncAnalyzeInputs() {
+  const isThread = $('#anTarget').value === 'thread'
+  $('#anRoot').classList.toggle('hidden', !isThread)
 }
 
 /* ───────────────────────── 扫码登录（2026-11-07） ───────────────────────── */
@@ -2345,7 +2436,11 @@ function buildHandledRow(record) {
       timePart ? h('span', { class: 'time', text: timePart }) : null,
     ),
     h('td', { class: 'cell-bv' }, bv),
-    h('td', { class: 'cell-title', title }, h('span', { class: 'title-text', text: title })),
+    h('td', { class: 'cell-title', title },
+      record.target && record.target !== 'video'
+        ? h('span', { class: `tag-target ${record.targetKind}`, text: record.targetLabel })
+        : null,
+      h('span', { class: 'title-text', text: title })),
     h('td', {}, h('span', { class: `badge ${record.resultKind || 'neutral'}`, text: record.resultLabel || record.result || '未知' })),
     h('td', {}, h('span', { class: `badge mode-${record.modeKind || 'neutral'}`, text: record.modeLabel || '未记录' })),
     h('td', { class: 'cell-num' }, chars),
@@ -2409,10 +2504,13 @@ function renderRejectedRows(rows) {
 function filterByModeSource(rows) {
   const mode = STATE.histMode
   const source = STATE.histSource
-  if (!mode && !source) return rows
+  const target = STATE.histTarget
+  if (!mode && !source && !target) return rows
   return rows.filter((r) => {
     if (mode && (r.mode || 'unknown') !== mode) return false
     if (source && (r.source || 'unknown') !== source) return false
+    // 旧记录没有 target 字段 → 当作 video
+    if (target && (r.target || 'video') !== target) return false
     return true
   })
 }
@@ -2785,6 +2883,13 @@ function bindEvents() {
   })
   $('#sourceSel').addEventListener('change', (event) => {
     STATE.histSource = event.target.value
+    renderHistory()
+  })
+  $('#anTarget').addEventListener('change', syncAnalyzeInputs)
+  $('#btnAnalyze').addEventListener('click', runAnalyze)
+  $('#anRoot').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAnalyze() })
+  $('#targetSel').addEventListener('change', (event) => {
+    STATE.histTarget = event.target.value
     renderHistory()
   })
 

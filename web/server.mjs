@@ -23,7 +23,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
 import { HOME } from '../lib/paths.mjs'
 import { loginStatus, startLogin, pollLogin } from '../lib/login.mjs'
 
@@ -61,6 +61,14 @@ const RESULT_META = {
   quiet: { label: '静默', kind: 'quiet' },
   skipped_quota: { label: '跳过（额度）', kind: 'skip' },
   skipped_per_video: { label: '跳过（同视频）', kind: 'skip' },
+  preview: { label: '预览', kind: 'preview' },
+}
+
+/** 分析对象（2026-11-08）：video = 视频正文，comments = 评论区，thread = 楼中楼 */
+const TARGET_META = {
+  video: { label: '视频', kind: 'video' },
+  comments: { label: '评论区', kind: 'comments' },
+  thread: { label: '这层楼', kind: 'thread' },
 }
 
 /** 静默：@ 里带了「悄悄」，AI 不往评论区发任何东西，只写 runs/ 和 handled.jsonl */
@@ -394,6 +402,8 @@ function decorateHandled(record) {
     } catch { /* 没有 run.json 就算了 */ }
   }
   const modeMeta = MODE_META[mode] ?? { label: mode || '未记录', kind: 'neutral' }
+  const target = typeof record.target === 'string' ? record.target : 'video'
+  const targetMeta = TARGET_META[target] ?? TARGET_META.video
 
   return {
     ...record,
@@ -401,6 +411,9 @@ function decorateHandled(record) {
     source,
     modeLabel: modeMeta.label,
     modeKind: modeMeta.kind,
+    target,
+    targetLabel: targetMeta.label,
+    targetKind: targetMeta.kind,
     timeLocal: localStamp(record.at),
     resultLabel: meta.label,
     resultKind: meta.kind,
@@ -442,10 +455,13 @@ function buildHistory(limit) {
     totalRejected: rejectedAll.length,
     /** 按输出形态计数（筛选器的数字用） */
     modes: { archive: 0, summary: 0, view: 0, both: 0, unknown: 0 },
+    targets: { video: 0, comments: 0, thread: 0 },
   }
   for (const record of handledAll) {
     const mk = MODE_META[record.mode] ? record.mode : 'unknown'
     stats.modes[mk] += 1
+    const tk = TARGET_META[record.target] ? record.target : 'video'
+    stats.targets[tk] += 1
     if (record.result === 'replied') {
       stats.totalReplied += 1
       if (localDateKey(record.at) === today) stats.todayReplied += 1
@@ -534,6 +550,41 @@ function send(res, status, body, headers = {}) {
   })
   if (res._head) res.end()
   else res.end(buf)
+}
+
+const PKG_ROOT = path.resolve(WEB_DIR, '..')
+
+/** 跑一个 node 脚本并收 stdout/stderr（超时杀进程） */
+function runNode(args, timeoutMs = 10 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, args, {
+      cwd: PKG_ROOT, timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024,
+      windowsHide: true, encoding: 'utf8',
+    }, (error, stdout, stderr) => {
+      if (error && !stdout) return reject(new Error(String(stderr || error.message).slice(-400)))
+      resolve({ stdout: String(stdout || ''), stderr: String(stderr || '') })
+    })
+  })
+}
+
+/**
+ * 记一条「预览」到 handled.jsonl：进了历史，但**没有发到 B站**。
+ * rpid 用 preview-<runId> 占位，不会被当成真实的 @ 去重键。
+ */
+function markPreview({ bvid, target, runId, chars }) {
+  let title = ''
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(RUNS_DIR, runId, 'run.json'), 'utf8'))
+    title = j.title || ''
+  } catch { /* 没 run.json 就算了 */ }
+  const rec = {
+    at: new Date().toISOString(), runId, bvid, title,
+    result: 'preview', target, tier: target, mode: 'view', source: 'preview',
+    chars, rpid: 'preview-' + runId, mid: 0, nickname: '（本机预览）',
+    note: '预览：只落本地，未发评论',
+  }
+  fs.appendFileSync(HANDLED_FILE, JSON.stringify(rec) + '\n')
+  return rec
 }
 
 function sendJson(res, status, payload) {
@@ -888,6 +939,36 @@ async function handler(req, res) {
       const key = String(url.searchParams.get('key') ?? '')
       const r = await pollLogin(key)
       return sendJson(res, 200, { ok: r.state !== 'error', ...r })
+    }
+
+    /* ── 预览分析（2026-11-08）：跑一次评论分析，只落本地，**绝对不发评论** ── */
+    if (url.pathname === '/api/analyze' && method === 'POST') {
+      let body
+      try {
+        body = JSON.parse(await readBody(req, 64 * 1024))
+      } catch (e) {
+        return sendJson(res, 400, { ok: false, error: e?.message || '请求体不是合法 JSON' })
+      }
+      const bv = String(body?.bvid ?? '').trim()
+      const target = body?.target === 'thread' ? 'thread' : 'comments'
+      const root = String(body?.root ?? '').trim()
+      if (!/^BV[0-9A-Za-z]{10}$/.test(bv)) return sendJson(res, 400, { ok: false, error: 'BV 号格式不对（形如 BV1xxxxxxxxx）' })
+      if (target === 'thread' && !/^\d+$/.test(root)) {
+        return sendJson(res, 400, { ok: false, error: '「这层楼」需要填一个 root rpid（纯数字）' })
+      }
+      const args = [path.join(PKG_ROOT, 'bin', 'fish.mjs'), 'summary', bv, '--target', target, '--json']
+      if (target === 'thread') args.push('--root', root)
+      try {
+        const out = await runNode(args, 10 * 60 * 1000)
+        const m = String(out.stdout).match(/@@FISH@@(\{.*\})/)
+        if (!m) return sendJson(res, 500, { ok: false, error: '没拿到结果：' + String(out.stderr || out.stdout).slice(-300) })
+        const r = JSON.parse(m[1])
+        // 记一条「预览」：进了历史，但**没有发到 B站**
+        markPreview({ bvid: bv, target, runId: r.runId, chars: r.chars })
+        return sendJson(res, 200, { ok: true, runId: r.runId, text: r.text, target })
+      } catch (e) {
+        return sendJson(res, 500, { ok: false, error: e?.message ?? String(e) })
+      }
     }
 
     if (url.pathname === '/api/history' && isGet) {

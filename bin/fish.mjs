@@ -13,13 +13,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { see, renderReport } from '../lib/media.mjs'
+import { getView } from '../lib/bili.mjs'
 import { ensureHome, config, BILI_REPLY_LIMIT } from '../lib/config.mjs'
 import { HOME, cacheDir } from '../lib/paths.mjs'
-import { detectStyle, toTimedText, mergeSentences, buildPrompt, selfCheck, fmt } from '../lib/compose.mjs'
+import { detectStyle, toTimedText, mergeSentences, buildPrompt, buildCommentPrompt, selfCheck, fmt } from '../lib/compose.mjs'
 import { askModel } from '../lib/model.mjs'
 import { getSession, rememberSession } from '../lib/sessions.mjs'
 import { ocrVideo } from '../lib/ocr.mjs'
 import { asrVideo } from '../lib/asr.mjs'
+import { fetchTopComments, fetchThread, renderComment, truncateByChars } from '../lib/comments.mjs'
 import { newRun, writeArtifact, appendIndex, stats, listRuns } from '../lib/runs.mjs'
 import { checkSubtitleQuality } from '../lib/subtitle-check.mjs'
 import { SOURCES, MODES, MODE_LABEL, SOURCE_LABEL } from '../lib/routing.mjs'
@@ -47,6 +49,7 @@ fish —— 召唤型 B 站视频总结工具
   node bin/fish.mjs transcript <BV号或链接> [--ocr] [--p N]
   node bin/fish.mjs summary <BV号或链接> [--dry] [--force] [--ask "额外要求"] [--p N]
                              [--source auto|subtitle|ocr|asr] [--mode archive|summary|view|both]
+       [--target video|comments|thread] [--root <rpid>]
   node bin/fish.mjs stats
   node bin/fish.mjs runs [BV号]
   node bin/fish.mjs serve [--dry] [--once] [--interval 30]
@@ -415,8 +418,10 @@ function writeArchive({ report, material, timed, coverage, style, source, dry })
   console.log(`\n过程文档 ${run.dir}`)
 }
 
-async function cmdSummary(target, { dry = false, force = false, ask = '', source = 'auto', mode = 'view' } = {}) {
+async function cmdSummary(target, { dry = false, force = false, ask = '', source = 'auto', mode = 'view', obj = 'video', root = null } = {}) {
   ensureHome()
+  // 分析对象不是视频正文时，走完全不同的素材路径（评论 / 楼中楼）
+  if (obj !== 'video') return runCommentAnalysis(target, { obj, root, dry, ask })
   let report = await see(target, { probe: true, page: pageOf() })
   if (!report.video) {
     console.error('拿不到视频元信息：' + (report.steps?.[0]?.error ?? '未知原因'))
@@ -611,6 +616,155 @@ async function cmdSummary(target, { dry = false, force = false, ask = '', source
   console.log(`\n过程文档 ${run.dir}`)
 }
 
+/**
+ * 评论分析（2026-11-08）
+ *
+ * 和视频总结走**完全不同的素材路径**：不下载、不抽帧、不转写，只打评论接口。
+ * 所以这里没有降级链，只有「拉得到」和「拉不到」。
+ *
+ * 两种对象：
+ *   comments —— 整个视频评论区（热评 + 最新，按配置取样）
+ *   thread   —— 一层楼（root + 回复，按字数截断）
+ */
+async function runCommentAnalysis(bvid, { obj = 'comments', root = null, dry = false, ask = '' } = {}) {
+  const cfg = config()
+  const c = cfg.comments ?? {}
+  const topN = Number(c.topN) || 50
+  const newestN = Number(c.newestN) || 20
+  const minTotal = Number(c.minTotal) || 10
+  const threadMaxChars = Number(c.threadMaxChars) || 30000
+
+  let video
+  try {
+    video = await getView(bvid)
+  } catch (e) {
+    console.error(`✗ ${bvid} 拿不到视频信息：${e.message}`)
+    process.exit(3)
+  }
+
+  let material = ''
+  let header = ''
+  let snapshot = []
+
+  if (obj === 'thread') {
+    if (!root) {
+      console.error(`✗ 「看看这层楼」需要你在某条评论下面 @ 我；你这条是顶层评论，没有楼可分析`)
+      process.exit(4)
+    }
+    let t
+    try {
+      t = await fetchThread(video.aid, String(root))
+    } catch (e) {
+      console.error(`✗ ${bvid} 拉不到这层楼：${e.message}`)
+      process.exit(4)
+    }
+    const list = [t.root, ...t.replies].filter(Boolean)
+    if (!list.length) {
+      console.error(`✗ ${bvid} 这层楼（rpid=${root}）是空的`)
+      process.exit(4)
+    }
+    const cut = truncateByChars(list, threadMaxChars)
+    snapshot = cut.kept
+    material = cut.kept.map((x, i) => renderComment(x, i + 1)).join('\n')
+    header = `这一层楼共 ${list.length} 条（root + 回复 ${t.replies.length} 条）`
+      + (cut.dropped ? `，因长度只取前 ${cut.kept.length} 条` : '')
+      + `；root 作者 ${t.root?.uname ?? '未知'}`
+  } else {
+    let hot
+    let newest
+    try {
+      hot = await fetchTopComments(video.aid, { sort: 'hot', want: topN })
+      newest = await fetchTopComments(video.aid, { sort: 'time', want: newestN })
+    } catch (e) {
+      console.error(`✗ ${bvid} 拉不到评论：${e.message}`)
+      process.exit(4)
+    }
+    const total = hot.total || 0
+    if (total && total < minTotal) {
+      console.error(`✗ ${bvid} 评论区只有 ${total} 条（少于 comments.minTotal=${minTotal}），不分析`)
+      process.exit(4)
+    }
+    const seen = new Set(hot.list.map((x) => x.rpid))
+    const extra = newest.list.filter((x) => !seen.has(x.rpid))
+    const all = [...hot.list, ...extra]
+    if (!all.length) {
+      console.error(`✗ ${bvid} 评论区是空的`)
+      process.exit(4)
+    }
+    snapshot = all
+    material = all.map((x, i) => renderComment(x, i + 1)).join('\n')
+    header = `共 ${total} 条；本次取样：热评前 ${hot.list.length} + 最新 ${extra.length}（去重后 ${all.length} 条）`
+  }
+
+  const prompt = buildCommentPrompt({ video, target: obj, material, header, ask })
+  const run = newRun(bvid, obj)
+
+  console.log(`\n视频   ${video.title}`)
+  console.log(`对象   ${obj === 'thread' ? '这层楼' : '评论区'}`)
+  console.log(`素材   ${header}`)
+  if (ask) console.log(`提问   ${ask.slice(0, 40)}`)
+
+  if (dry) {
+    writeArtifact(run.dir, 'prompt.txt', prompt)
+    writeArtifact(run.dir, 'comments.json', snapshot)
+    console.log(`\n[DRY] prompt ${prompt.length} 字符，不调模型`)
+    console.log(`过程文档 ${run.dir}`)
+    return
+  }
+
+  let r
+  const t0 = Date.now()
+  try {
+    r = await askModel({ prompt, timeoutMs: 300_000 })
+  } catch (e) {
+    console.error(`✗ ${bvid} 生成失败：${e?.message ?? e}`)
+    process.exit(5)
+  }
+  const ms = Date.now() - t0
+  const text = r.text ?? ''
+  const check = selfCheck(text, { tier: obj })
+
+  const body = [
+    `# ${video.title}（${obj === 'thread' ? '这层楼' : '评论区'}分析）`,
+    '',
+    `- BV：${bvid}`,
+    `- UP：${video.owner}`,
+    `- 素材：${header}`,
+    `- 生成：${ms} ms，${r.usage?.totalTokens ?? '?'} tokens`,
+    `- 字数：${check.chars}`,
+    '',
+    '---',
+    '',
+    text,
+    '',
+  ].join('\n')
+
+  writeArtifact(run.dir, 'summary.md', body)
+  writeArtifact(run.dir, 'prompt.txt', prompt)
+  writeArtifact(run.dir, 'comments.json', snapshot)
+  const record = {
+    at: new Date().toISOString(), runId: run.id, kind: obj, bvid,
+    title: video.title, duration: video.duration, tier: obj, target: obj,
+    chars: check.chars, ms, tokens: r.usage?.totalTokens ?? 0,
+    sessionId: r.sessionId ?? null, ok: check.ok, issues: check.issues,
+    source: 'auto', mode: 'view',
+  }
+  writeArtifact(run.dir, 'run.json', record)
+  appendIndex(record)
+
+  if (flags.has('json')) {
+    console.log('@@FISH@@' + JSON.stringify({
+      ok: check.ok, runId: run.id, runDir: run.dir, bvid,
+      chars: check.chars, text, tier: obj, target: obj, source: 'auto', mode: 'view',
+    }))
+  }
+  console.log('\n' + '─'.repeat(60))
+  console.log(text)
+  console.log('─'.repeat(60))
+  console.log(`\n字数 ${check.chars}`)
+  console.log(`过程文档 ${run.dir}`)
+}
+
 function retryHint(check) {
   // 2026-11-06：自检只拦"空正文"，不再因为结构/字数打回；这里也不提字数、分段
   return `\n\n【上一次没有产出可用正文，请重写】问题：${check.issues.join('；')}。`
@@ -749,15 +903,22 @@ async function main() {
     // 召唤指令：--source / --mode（不写就是 auto / view，与以前完全一致）
     const source = (optValue('source') || 'auto').toLowerCase()
     const mode = (optValue('mode') || 'view').toLowerCase()
+    // 分析对象：video（默认）/ comments（评论区）/ thread（这层楼）
+    const obj = (optValue('target') || 'video').toLowerCase()
+    const root = optValue('root') || null
     if (!SOURCES.includes(source)) {
       console.error(`--source 只支持 ${SOURCES.join(' / ')}，收到：${source}`)
+      process.exit(2)
+    }
+    if (!['video', 'comments', 'thread'].includes(obj)) {
+      console.error(`--target 只支持 video / comments / thread，收到：${obj}`)
       process.exit(2)
     }
     if (!MODES.includes(mode)) {
       console.error(`--mode 只支持 ${MODES.join(' / ')}，收到：${mode}`)
       process.exit(2)
     }
-    await cmdSummary(target, { dry: flags.has('dry'), force: flags.has('force'), ask, source, mode })
+    await cmdSummary(target, { dry: flags.has('dry'), force: flags.has('force'), ask, source, mode, obj, root })
     return
   }
 

@@ -430,7 +430,7 @@ test('词表：除静默外每组只留一个词（收词后不该再有同义�
     assert.equal(ws.length, 1, `${g} 应该只有一个词，实际 ${JSON.stringify(ws)}`)
   }
   assert.deepEqual(k.quiet, ['悄悄', '静默'])
-  assert.deepEqual(Object.keys(k).sort(), ['archive', 'both', 'forceAsr', 'forceOcr', 'forceSubtitle', 'quiet', 'summaryOnly', 'viewOnly'])
+  assert.deepEqual(Object.keys(k).sort(), ['archive', 'both', 'comments', 'forceAsr', 'forceOcr', 'forceSubtitle', 'quiet', 'summaryOnly', 'thread', 'viewOnly'])
 })
 
 test('词表：三级素材源都有词（用字幕 / 用OCR / 用ASR）', () => {
@@ -542,4 +542,23 @@ test('-412 熔断，-352 走风控退避（两者不再混在一起）', () => {
   assert.equal(BLOCKING_CODES.has(-412), true)
   assert.equal(BLOCKING_CODES.has(-352), false)
   assert.equal(RISK_CODES.has(-352), true)
+})
+
+
+/* ── 分析对象（2026-11-08）── */
+test('target：看看评论 → comments，看看这层楼 → thread', () => {
+  assert.equal(parseCommand('@它 看看评论').target, 'comments')
+  assert.equal(parseCommand('@它 看看这层楼').target, 'thread')
+  assert.equal(parseCommand('@它 看看这个').target, 'video', '没写就是 video')
+})
+
+test('target：能和其它维度叠加', () => {
+  const c = parseCommand('@它 悄悄 看看这层楼')
+  assert.equal(c.target, 'thread')
+  assert.equal(c.quiet, true)
+})
+
+test('target：长词优先不会把「看看这层楼」拆成别的', () => {
+  const c = parseCommand('@它 看看这层楼')
+  assert.deepEqual(c.hits.map((h) => h.word), ['看看这层楼'])
 })
