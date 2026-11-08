@@ -764,6 +764,7 @@ pre.transcript {
         <span class="analyze-label">预览分析</span>
         <input id="anBvid" class="input narrow" type="text" placeholder="BV 号" spellcheck="false">
         <select id="anTarget" class="input">
+          <option value="video" selected>视频正文</option>
           <option value="comments">评论区</option>
           <option value="thread">这层楼</option>
         </select>
@@ -1385,7 +1386,7 @@ async function api(url, options = {}) {
 
 /* ───────────────────────── 预览分析（2026-11-08） ───────────────────────── */
 /**
- * 在网页上直接跑一次评论分析：只落本地、记进历史，**不发任何评论**。
+ * 在网页上直接跑一次分析（视频正文 / 评论区 / 这层楼）：只落本地、记进历史，**不发任何评论**。
  * 走 POST /api/analyze，底层是 node bin/fish.mjs summary <bv> --target <t>。
  */
 async function runAnalyze() {

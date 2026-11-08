@@ -950,13 +950,15 @@ async function handler(req, res) {
         return sendJson(res, 400, { ok: false, error: e?.message || '请求体不是合法 JSON' })
       }
       const bv = String(body?.bvid ?? '').trim()
-      const target = body?.target === 'thread' ? 'thread' : 'comments'
+      const raw = String(body?.target ?? 'video')
+      const target = ['video', 'comments', 'thread'].includes(raw) ? raw : 'video'
       const root = String(body?.root ?? '').trim()
       if (!/^BV[0-9A-Za-z]{10}$/.test(bv)) return sendJson(res, 400, { ok: false, error: 'BV 号格式不对（形如 BV1xxxxxxxxx）' })
       if (target === 'thread' && !/^\d+$/.test(root)) {
         return sendJson(res, 400, { ok: false, error: '「这层楼」需要填一个 root rpid（纯数字）' })
       }
-      const args = [path.join(PKG_ROOT, 'bin', 'fish.mjs'), 'summary', bv, '--target', target, '--json']
+      const args = [path.join(PKG_ROOT, 'bin', 'fish.mjs'), 'summary', bv, '--json']
+      if (target !== 'video') args.push('--target', target)
       if (target === 'thread') args.push('--root', root)
       try {
         const out = await runNode(args, 10 * 60 * 1000)
