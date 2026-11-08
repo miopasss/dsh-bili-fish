@@ -341,6 +341,22 @@ GET  /api/login/status    当前登录态（探一次 nav）
 
 > `serve` 遇到 `-101 账号未登录` 时**不再每 30 秒刷一行日志**，改成 10 分钟一次并提示去控制台扫码。
 
+#### 自动续期（避开 re-scan）
+
+B站 cookie **不推不动**：不主动刷新就一直旧着，直到硬失效。所以我们补了完整链路：
+
+```
+GET  cookie/info            → { refresh: bool, timestamp }
+     RSA-OAEP("refresh_"+ts) → CorrespondPath（小写 hex）
+GET  www.bilibili.com/correspond/1/{path} → HTML 里 refresh_csrf
+POST cookie/refresh         → 拿新 cookie + 新 refresh_token
+POST confirm/refresh        → 用旧 token 收尾（旧 token 立即作废）
+```
+
+- `serve` **每 6 小时**问一次要不要刷；遇到 `-101` **先强制续期再告警**
+- 前提是本地存了 `refresh_token` —— **扫码时自动存**（之前漏了这一个字段，所以只能等失效再扫）
+- 续期失败会打印明确原因：`86095` = refresh_csrf 不对或 refresh_token 不匹配
+
 ### 控制台（另一条旁路，不参与处理）
 
 `web/server.mjs` 是**独立进程**，只读写本地文件，**不发任何 B 站请求**。

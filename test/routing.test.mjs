@@ -506,3 +506,40 @@ test('parseSetCookie：从 Set-Cookie 兜底解析', () => {
     sessdata: 'abc,def', bili_jct: 'csrf789', dedeuserid: '999',
   })
 })
+
+/* ── cookie 续期（2026-11-08）── */
+import { correspondPath, parseRefreshCsrf } from '../lib/login.mjs'
+
+test('correspondPath：返回 256 位小写 hex（1024 位 RSA）', () => {
+  const p = correspondPath(1794112529917)
+  assert.equal(p.length, 256)
+  assert.match(p, /^[0-9a-f]+$/)
+})
+
+test('correspondPath：时间戳不同结果不同（不是常量）', () => {
+  assert.notEqual(correspondPath(1), correspondPath(2))
+})
+
+test('parseRefreshCsrf：从 correspond 页面抠 refresh_csrf', () => {
+  assert.equal(parseRefreshCsrf('<div id="1-name">abc123DEF</div>'), 'abc123DEF')
+  assert.equal(parseRefreshCsrf('<div id="1-name">  空格两边  </div>'), '空格两边')
+})
+
+test('parseRefreshCsrf：没有该元素返回 null', () => {
+  assert.equal(parseRefreshCsrf('<html><body>404</body></html>'), null)
+  assert.equal(parseRefreshCsrf(''), null)
+})
+
+/* ── 发评论返回码语义（2026-11-08 修正）── */
+import { BLOCKING_CODES, RISK_CODES, DUPLICATE_CODE } from '../lib/reply.mjs'
+
+test('12051 是「重复被拒」，不在阻断集合里', () => {
+  assert.equal(DUPLICATE_CODE, 12051)
+  assert.equal(BLOCKING_CODES.has(12051), false)
+})
+
+test('-412 熔断，-352 走风控退避（两者不再混在一起）', () => {
+  assert.equal(BLOCKING_CODES.has(-412), true)
+  assert.equal(BLOCKING_CODES.has(-352), false)
+  assert.equal(RISK_CODES.has(-352), true)
+})
