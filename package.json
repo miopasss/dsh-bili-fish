@@ -33,7 +33,7 @@
   "scripts": {
     "see": "node bin/fish.mjs see",
     "summary": "node bin/fish.mjs summary",
-    "test": "node --test test/compose.test.mjs test/reply.test.mjs test/ocr.test.mjs test/subtitle-check.test.mjs test/routing.test.mjs test/asr.test.mjs"
+    "test": "node --test test/compose.test.mjs test/reply.test.mjs test/ocr.test.mjs test/subtitle-check.test.mjs test/routing.test.mjs test/asr.test.mjs test/source-guard.test.mjs"
   },
   "engines": {
     "node": ">=20",
