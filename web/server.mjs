@@ -62,6 +62,7 @@ const RESULT_META = {
   skipped_quota: { label: '跳过（额度）', kind: 'skip' },
   skipped_per_video: { label: '跳过（同视频）', kind: 'skip' },
   preview: { label: '预览', kind: 'preview' },
+  shadow: { label: '影子封禁', kind: 'shadow' },
 }
 
 /** 分析对象（2026-11-08）：video = 视频正文，comments = 评论区，thread = 楼中楼 */

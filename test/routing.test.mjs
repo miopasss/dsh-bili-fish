@@ -426,10 +426,12 @@ test('quiet：没写悄悄就是 false（不是 undefined）', () => {
 test('词表：除静默外每组只留一个词（收词后不该再有同义词）', () => {
   const k = DEFAULTS.routing.keywords
   for (const [g, ws] of Object.entries(k)) {
-    if (g === 'quiet') continue // 静默有两个：悄悄 / 静默
+    // 静默（悄悄/静默）、评论、楼中楼都允许同义词
+    if (['quiet', 'comments', 'thread'].includes(g)) continue
     assert.equal(ws.length, 1, `${g} 应该只有一个词，实际 ${JSON.stringify(ws)}`)
   }
   assert.deepEqual(k.quiet, ['悄悄', '静默'])
+  assert.ok(k.comments.length >= 1 && k.thread.length >= 1)
   assert.deepEqual(Object.keys(k).sort(), ['archive', 'both', 'comments', 'forceAsr', 'forceOcr', 'forceSubtitle', 'quiet', 'summaryOnly', 'thread', 'viewOnly'])
 })
 

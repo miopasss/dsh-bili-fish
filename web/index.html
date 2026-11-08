@@ -130,6 +130,9 @@ h1 { margin: 0; font-size: 20px; letter-spacing: .3px; font-weight: 650; }
 .badge.mode-view { color: var(--fg-dim, #94a3b8); background: rgba(148, 163, 184, .07); border-color: rgba(148, 163, 184, .18); }
 .badge.mode-both { color: var(--amber); background: rgba(251, 191, 36, .07); border-color: rgba(251, 191, 36, .18); }
 /* 预览：只落本地、没发评论的分析结果（虚线框，一眼看出"不是真的发出去了"） */
+/* 影子封禁：发出去了但别人看不到（2026-11-08）——红色实线，必须处理 */
+.badge.shadow { color: #f87171; background: rgba(248, 113, 113, .10); border-color: rgba(248, 113, 113, .50); }
+
 .badge.preview { color: #c4b5fd; background: rgba(167, 139, 250, .06); border-style: dashed; border-color: rgba(167, 139, 250, .45); }
 
 /* 分析对象小标签：塞在标题前面，不额外占一列 */
