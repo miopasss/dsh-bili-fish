@@ -564,3 +564,37 @@ test('target：长词优先不会把「看看这层楼」拆成别的', () => {
   const c = parseCommand('@它 看看这层楼')
   assert.deepEqual(c.hits.map((h) => h.word), ['看看这层楼'])
 })
+
+/* ── 私信（2026-11-12）── */
+import { splitMessage, DM_CHUNK, DM_MAX_PARTS } from '../lib/dm.mjs'
+
+test('splitMessage：短文本原样返回', () => {
+  assert.deepEqual(splitMessage('短消息'), ['短消息'])
+  assert.deepEqual(splitMessage(''), [])
+  assert.deepEqual(splitMessage(null), [])
+})
+
+test('splitMessage：超长按句子切，每段不超上限', () => {
+  const long = '这是一句话。'.repeat(600) // 3600 字
+  const parts = splitMessage(long)
+  assert.ok(parts.length > 1)
+  for (const p of parts) assert.ok(p.length <= DM_CHUNK + 10, `某段 ${p.length} 字超出上限`)
+})
+
+test('splitMessage：切在句号后面，不切在句子中间', () => {
+  const text = '第一句。第二句。第三句。'
+  const parts = splitMessage(text, 8)
+  for (const p of parts.slice(0, -1)) assert.ok(/[。！？]$/.test(p), `"${p}" 不是以句末标点结束`)
+})
+
+test('splitMessage：切分是纯切分，不再吃掉内容（条数限制交给 sendDM）', () => {
+  const huge = '这是一句话。'.repeat(200)
+  const parts = splitMessage(huge)
+  const joined = parts.join('')
+  assert.ok(joined.length >= huge.length - 10, '切分不该丢内容')
+})
+
+test('DM 上限：单条 300 字、未回复前只发 1 条（实测 21007 / 21047）', () => {
+  assert.equal(DM_CHUNK, 300)
+  assert.equal(DM_MAX_PARTS, 1)
+})
